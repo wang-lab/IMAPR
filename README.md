@@ -1,4 +1,4 @@
-# iPrimer
+# DARSM
 This repository holds the dual alignment based RNA-Seq somatic mutation, DARSM, pipeline used to discover RNA-seq based somatic mutation.
 
 
@@ -52,7 +52,9 @@ Follwing reference files are required to run DARSM pipeline:
 	* The PON files recommeded by broad institute is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
 	
 * A Germline resource file:
-	* The annotation files from TCGA data portal is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)	
+	* The annotation files from TCGA data portal is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
+
+* Three Germline resource file:
 
 ### Installation of iPrimer standalone program
 
