@@ -1,0 +1,16 @@
+sample_name	sample1
+input_format	RNA/RNA
+tumor_input	/input/tumor.bam
+normal_input	/input/normal.bam
+out_prefix	/output/
+  
+#tools_reference
+gatk	~/gatk
+picard	~/picard.jar
+samtools	~/samtools
+  
+#reference
+fasta_ref	/reference/GRCh38.d1.vd1.fa
+RNA_edits_ref	/reference/RNA_edits.bed
+germline_ref	/reference/hg38_germline_resources.vcf.gz
+PON_ref	/reference/MuTect2.PON.5210.vcf.tar

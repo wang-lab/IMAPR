@@ -54,38 +54,99 @@ Follwing reference files are required to run DARSM pipeline:
 * A Germline resource file:
 	* The annotation files from TCGA data portal is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
 
-* Three Germline resource file:
+* Three RNA-edits resource files:
+	* Three RNA-edits resource files were provided in DARSM/reference
+	* DARSM/reference/Darned_38.bed
+	* DARSM/reference/Radar_38.bed
+	* DARSM/reference/DRNA-EDI.bed
+	
+### Installation of DARSM standalone program
 
-### Installation of iPrimer standalone program
-
-* Place the DARSM.tar.gz file anywhere in your Linux system and uncompress using the following command:
+* Install DARSM using git command:
 ```
-   tar -xzvf DARSM.tar.gz   
+   git clone https://github.com/wang-lab/DARSM.git   
 ```
-* Copy your input files into the newly created DARSM directory.
+* Prepare your input files and update your input.txt file.
 * Type 'sh DARSM.sh' to run the program and view the help file.
+
+### I/O Descriptions  
+#### Inputs  
+***pipeline_inputs.txt***  
+This file has the following format. The order of rows doesn't matter.  
+
+```
+  sample_name	<sample name>
+  input_format	<RNA/RNA OR RNA/WXS>
+  tumor_input	<path-to-bam-file>
+  normal_input	<path-to-bam-file>
+  out_prefix	<path-to-output-folder>
+  
+  #tools_reference
+  gatk	<path-to-gatk-package>
+  picard	<path-to-picard-package>
+  samtools	<path-to-samtools-package>
+  
+  #reference
+  fasta_ref	<path-to-fasta-reference>
+  RNA_edits_ref	<path-to-rna-edits-referenc>
+  germline_ref	<path-to-germline-referenc>
+  PON_ref	<path-to-PON-referenc>
+```  
+***sample_name*** is the name of the sample, used to name the output folder of the run. For consistency we recommend that sample_name is the same as the name of the raw data folder  
+***input_format*** dictates whether the input files both RNA-seq data or RNA vs WXS data.  
+***tumor_input*** is path to aligned bam file for tumor sample.  
+***normal_input*** is path to aligned bam file for normal sample. 
+***out_prefix*** is path to output folder. 
+
+***gatk*** dictates whether the input files both RNA-seq data or RNA vs WXS data.  
+***picard*** is path to aligned bam file for tumor sample.  
+***samtools*** is path to aligned bam file for normal sample. 
+
+***fasta_ref*** is path to genome fasta reference. 
+***RNA_edits_ref*** is path to RNA-edits reference. 
+***germline_ref*** is path to germline resource reference. 
+***PON_ref*** is path to panel of normal reference. 
 
 ### Command Line Parameters
 
-* Bam file submission, required (-f path/to/fasta).
-   This option allows the user to submit one sequence in a FASTA file, using the following command:
+* bash command submission, user need to change the indices listed in DARSM.sh   
+   
 ```
-   sh DARSM.sh
+   sh DARSM.sh pipeline_inputs.txt
+```
+
+* The script can also be run separately with follow steps
+  
+```
+   perl p1.pl [options]... -Tumor *.bam -Normal *.bam -R /directory/to/reference -outPrefix /directory/to/output
+   perl p2.pl [options]... -inputDir *.bam -/directory/to/p1.pl/output
+   perl p3.pl [options]... -inputDir *.bam -/directory/to/p1.pl/output
 ```
 
 ### Outputs
 
-If the file is read in correctly, the following output files will be generated in iPrimer folder.
-
+If the file is read in correctly, the following output files will be generated in output folder.
+* 1st Variants files
+```
+   first_variants.txt
+```
+* 1st Variants files
+```
+   first_variants.txt
+```
 * Variants files
 ```
    final_variants.txt
+```
+* Machine-learning filtered Variants files
+```
+   machine_learning_variants.txt
 ```
 * Filtered somatic mutation files
 ```
    filtered_final_variants.txt
 ```
-* Filtered mutation files
+* annotated somatic mutation files
 ```
    anno_filtered_final_variants.txt
 ```
