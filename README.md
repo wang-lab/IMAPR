@@ -102,10 +102,10 @@ This file has the following format. The order of rows doesn't matter.
 ***picard*** is path to aligned bam file for tumor sample.  
 ***samtools*** is path to aligned bam file for normal sample. 
 
-***fasta_ref*** is path to genome fasta reference. 
-***RNA_edits_ref*** is path to RNA-edits reference. 
-***germline_ref*** is path to germline resource reference. 
-***PON_ref*** is path to panel of normal reference. 
+***fasta_ref*** is path to genome fasta reference.  
+***RNA_edits_ref*** is path to RNA-edits reference.  
+***germline_ref*** is path to germline resource reference.  
+***PON_ref*** is path to panel of normal reference.  
 
 ### Command Line Parameters
 
@@ -126,10 +126,6 @@ This file has the following format. The order of rows doesn't matter.
 ### Outputs
 
 If the file is read in correctly, the following output files will be generated in output folder.
-* 1st Variants files
-```
-   first_variants.txt
-```
 * 1st Variants files
 ```
    first_variants.txt
