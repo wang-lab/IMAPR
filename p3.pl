@@ -11,38 +11,12 @@ use List::Util qw/min/;
 			
 
 
-open(IN, "/data1/gtang/server/LUAD/signature.txt") or die "Cannot open signature.txt for reading: $!\n";
+
 my %sig;
 my %sig_total;
 my %pat_total;
-while(<IN>){
-	next if $. < 2;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	$pat_total{$line[2]} = 1;
-	if(exists $sig{$line[1]}{$line[4]}){
-		$sig{$line[1]}{$line[4]} = $sig{$line[1]}{$line[4]} + 1;		
-	}
-	else{
-		$sig{$line[1]}{$line[4]} = 1;
-	}
-	
-	if(exists $sig_total{$line[1]}){
-		$sig_total{$line[1]} = $sig_total{$line[1]} + 1;		
-	}
-	else{
-		$sig_total{$line[1]} = 1;
-	}
-}
-close(IN);
-
-
-
-
-
 
 my @list = `ls -d ./TCGA-*/`;
-
 
 my $file = "./gdc_m.txt";
 open(MA, "$file") or die "Cannot open $file for reading: $!\n";

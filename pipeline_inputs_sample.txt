@@ -1,0 +1,28 @@
+sample_name	sample1
+input_format	RNA/DNA
+tumor_input	/data3/gtang/git/data/tumor.bam
+normal_input	/data3/gtang/git/data/normal.bam
+out_prefix	/data3/gtang/git/data/out_put
+
+#tools_reference
+gatk	gatk
+picard	~/picard.jar
+samtools	samtools
+hisat2	hisat2
+
+#reference
+fasta_ref	/data1/gtang/genome/gdc/GRCh38.d1.vd1.fa
+gtf_ref	/data1/gtang/genome/gdc/gencode.v36.annotation.gtf
+genelist_ref	/data1/gtang/genome/gdc/gg.list
+RNA_edits_ref	/data1/gtang/genome/gdc/gencode.v36.annotation.gtfRNA_edits.bed
+dbsnp_ref	/data1/gtang/genome/gdc/common_all_20180418_update.vcf.gz
+germline_ref	/data1/gtang/genome/somatic-hg38_af-only-gnomad.hg38.vcf.gz
+PON_ref	/data1/gtang/genome/somatic-hg38_1000g_pon.hg38.vcf.gz
+hisat_ref	/data1/gtang/genome/gdc/hisat2_GRCh38
+igg_ref	/data3/gtang/git/DARSM/reference/IGG.gtf
+hla_ref	/data3/gtang/git/DARSM/reference/HLA.gtf
+pseudo_ref	/data3/gtang/git/DARSM/reference/pseudoGene.gtf
+tcga_PON_ref	/data1/gtang/genome/gdc/MuTect2.PON.5210.vcf
+radar_ref	/data1/gtang/genome/gdc/Radar_38.bed
+darned_ref	/data1/gtang/genome/gdc/darned_hg38.bed
+REDI_ref	/data1/gtang/genome/gdc/REDIportal_hg38.txt

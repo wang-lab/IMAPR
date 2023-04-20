@@ -1,18 +1,10 @@
 use strict;
 use warnings;
-use lib '/home/gtang/data1';
-#use XW::Seq;
-#use XW::File;
-use Data::Dumper;
+
 use List::Util qw/sum/;
 use List::Util qw/max/;
 use List::Util qw/min/;
 use Statistics::Test::WilcoxonRankSum;
-use Capture::Tiny qw/capture/;
-use Math::CDF qw(pnorm);
-use Statistics::RankCorrelation;
-use Statistics::Distributions;
-use Math::Complex;
 use Statistics::Distributions qw(chisqrprob);
 
 #########################This is the script for filtering variants based on RNA-seq data#########################
@@ -26,7 +18,13 @@ my $input = join "\t", @ARGV;
 $input =~ s/\s+$//;
 unless ((
 		#input_files
-		$input =~ /-iputDir\t/		
+		$input =~ /-ID\t/
+		&& $input =~ /-O\t/
+		&& $input =~ /-R\t/
+		
+		&& $input =~ /-igg\t/
+		&& $input =~ /-hla\t/
+		&& $input =~ /-pseudo\t/
 		)		
 		|| $input eq '-h'){
 	print "Found missing paramters, Please use -h for help information\n";
@@ -46,162 +44,141 @@ if ($input eq '-h'){
 
 ###############################################################################
 #prepare the input data from arugument input
-my $inputDir = '.';
-if ($input =~ /-iputDir\t(\S+)/){
-	$inputDir = $1;
+my $idInput = '.';
+if ($input =~ /-ID\t(\S+)/){
+	$idInput = $1;
 }
 
+my $outDir = '.';
+if ($input =~ /-O\t(\S+)/){
+	$outDir = $1;
+}
+
+my $fastaReference = '.';
+if ($input =~ /-R\t(\S+)/){
+	$fastaReference = $1;
+}
+
+my $iggReference = '.';
+if ($input =~ /-igg\t(\S+)/){
+	$iggReference = $1;
+}
+
+my $hlaReference = '.';
+if ($input =~ /-hla\t(\S+)/){
+	$hlaReference = $1;
+}
+
+my $pseudoReference = '.';
+if ($input =~ /-pseudo\t(\S+)/){
+	$pseudoReference = $1;
+}
+
+my $tcgaReference = '.';
+if ($input =~ /-tcga\t(\S+)/){
+	$tcgaReference = $1;
+}
+
+my $radarReference = '.';
+if ($input =~ /-radar\t(\S+)/){
+	$radarReference = $1;
+}
+
+my $darnedReference = '.';
+if ($input =~ /-darned\t(\S+)/){
+	$darnedReference = $1;
+}
+
+my $rediReference = '.';
+if ($input =~ /-redi\t(\S+)/){
+	$rediReference = $1;
+}
 
 ###############################################################################
-my $fastq_reference = "/data1/gtang/genome/gdc/GRCh38.d1.vd1.fa";
 
-my %igg;
-my $ref = "/data1/gtang/genome/gdc/IGG.txt";
-open(IN, "$ref") or die "Cannot open $ref for reading: $!\n";
-while(<IN>){
-	next if $_ =~ /^\#/;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	$igg{$line[0]}{$line[3]} = $line[4];
-}
-close(IN);
+################################load references################################
+my %igg = readGTF($iggReference);
+my %hla = readGTF($hlaReference);
+my %pseudo = readGTF($pseudoReference);
 
-my %hla;
-$ref = "/data1/gtang/genome/gdc/HLA.txt";
-open(IN, "$ref") or die "Cannot open $ref for reading: $!\n";
-while(<IN>){
-	next if $_ =~ /^\#/;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	$hla{$line[0]}{$line[3]} = $line[4];
-}
-close(IN);
+my %Radar = readEDITs($radarReference);
+my %Darned = readEDITs($darnedReference);
+my %REDI = readEDITs($rediReference);
 
-my %rb;
-$ref = "/data1/gtang/genome/gdc/ribosomal_protein.txt";
-open(IN, "$ref") or die "Cannot open $ref for reading: $!\n";
-while(<IN>){
-	next if $_ =~ /^\#/;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	$rb{$line[0]}{$line[3]} = $line[4];
-}
-close(IN);
-
-my %pseudo;
-$ref = "/data1/gtang/genome/gdc/pseudo_gene.txt";
-open(IN, "$ref") or die "Cannot open $ref for reading: $!\n";
-while(<IN>){
-	next if $_ =~ /^\#/;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	$pseudo{$line[0]}{$line[3]} = $line[4];
-}
-close(IN);
-
+##############################TCGA PON references##############################
 my %pon;
 my %ponDetail;
-my $pon = "/data1/gtang/ref/MuTect2.PON.5210.vcf";
-open(IN, "$pon") or die "Cannot open $pon for reading: $!\n";
-while (<IN>) {
-	next if $_ =~ /^\#/;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	#next if length($line[3]) > 5;
-	my @target = split /\,/, $line[4];
-	foreach my $target(@target){
-		#next if length($target) > 5;
-		if(length($line[3]) ==1 and length($target) == 1){
-			$ponDetail{$line[0]}{$line[1]}{"$line[3]_$target"} = 1;
+if(-e $tcgaReference){
+	open(IN, "$tcgaReference") or die "Cannot open $tcgaReference for reading: $!\n";
+	while (<IN>) {
+		next if $_ =~ /^\#/;
+		$_=~ s/\s+$//;
+		my @line = split /\t/, $_;			
+		my @target = split /\,/, $line[4];
+		foreach my $target(@target){				
+			if(length($line[3]) ==1 and length($target) == 1){
+				$ponDetail{$line[0]}{$line[1]}{"$line[3]_$target"} = 1;
+			}
 		}
+		$pon{$line[0]}{$line[1]} = 1;
 	}
-	$pon{$line[0]}{$line[1]} = 1;
+	close(IN);
+	unless (keys %pon or keys %ponDetail) {
+		print "Error: Can't find the panel of normal(PON) information in $tcgaReference, please check your PON file\n";
+		exit;
+	}
 }
-close(IN);
-
-my %edits;
-my $edits = "/data1/gtang/genome/TABLE1_hg38.txt";
-open(IN, "$edits") or die "Cannot open $pon for reading: $!\n";
-while (<IN>) {
-	next if $. < 2;
-	$_=~ s/\s+$//;
-	my @line = split /\t/, $_;
-	$edits{$line[0]}{$line[1]} = 1;
-	$edits{$line[0]}{$line[1]+1} = 1;
-	$edits{$line[0]}{$line[1]-1} = 1;
+else{
+	print "Error: Can't find the panel of normal(PON) file in $tcgaReference\n";
+	exit;
 }
-close(IN);
-
-$edits = "/data1/gtang/genome/gdc/Darned_38.bed";
-open(IN, "$edits") or die "Cannot open $pon for reading: $!\n";
-while (<IN>) {
-	#next if $. < 2;
-	$_=~ s/\s+$//;
-	my @line = split /[:-]/, $_;
-	$edits{$line[0]}{$line[1]} = 1;
-	$edits{$line[0]}{$line[1]+1} = 1;
-	$edits{$line[0]}{$line[1]-1} = 1;
-}
-close(IN);
-
-$edits = "/data1/gtang/genome/gdc/Radar_38.bed";
-open(IN, "$edits") or die "Cannot open $pon for reading: $!\n";
-while (<IN>) {
-	#next if $. < 2;
-	$_=~ s/\s+$//;
-	my @line = split /[:-]/, $_;
-	$edits{$line[0]}{$line[1]} = 1;
-	$edits{$line[0]}{$line[1]+1} = 1;
-	$edits{$line[0]}{$line[1]-1} = 1;
-}
-close(IN);
 	
-my $vcf = "./$cancer/$tcga[2]/final_Variants.vcf";
-my $vcf_raw = "./$cancer/$tcga[2]/first_Variants.vcf";
-		
-my %raw;
-open(IN, "$vcf_raw") or die "Cannot open $vcf_raw for reading: $!\n";
+################################Filter variants################################
+my $finalVCF = "$outDir/$idInput\_final_Variants.vcf";
+my $firstVCF = "$outDir/$idInput\_first_Variants.vcf";
+
+my %firstVCF;
+open(IN, "$firstVCF") or die "Cannot open $firstVCF for reading: $!\n";
 while(<IN>){
 	next if $_ =~ /^\#/;
 	$_=~ s/\s+$//;
 	my @line = split /\t/, $_;			
-	$raw{$line[0]}{$line[1]} = 1;
+	$firstVCF{$line[0]}{$line[1]} = 1;
 }
 close(IN);
 		
 		
-my %vcf;
-open(IN, "$vcf") or die "Cannot open $vcf for reading: $!\n";
+my %finalVCF;
+open(IN, "$finalVCF") or die "Cannot open $finalVCF for reading: $!\n";
 while(<IN>){
 	next if $_ =~ /^\#/;
 	$_=~ s/\s+$//;
 	my @line = split /\t/, $_;			
-	$vcf{$line[0]}{$line[1]} = $_;	
+	$finalVCF{$line[0]}{$line[1]} = $_;	
 }
 close(IN);
 
-my %tmp;
-my $tag = $tcga[2];
-my %pass_vcf;		
+
+
+my %pass_vcf;	
 		
 #update bed file
-my $bed_file = "./$cancer/$tcga[2]/final_Variants.bed";
-my $update_bed_file = "./$cancer/$tcga[2]/update_final_Variants.bed";
+my $bed_file = "$outDir/$idInput\_final_Variants.bed";
+my $update_bed_file = "$outDir/$idInput\_update_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,1,0,'mpileup');
 		
-my $bam = `ls ./$cancer/$tcga[2]/*/recal_hisat2_realign.bam`;
-$bam =~ s/\s+$//;
-my $mpileupout = "./$cancer/$tcga[2]/mpileup2.output";		
-system ("samtools mpileup -d 1000000 -l $update_bed_file -f $fastq_reference $bam -o $mpileupout 2>/dev/null") unless -e $mpileupout;
+my $bam = "$outDir/reAligned_hisat2_Tumor.bam";
+my $mpileupout = "$outDir/$idInput\_mpileup2.output";		
+system ("samtools mpileup -d 1000000 -l $update_bed_file -f $fastaReference $bam -o $mpileupout 2>/dev/null") unless -e $mpileupout;
 		
-$update_bed_file = "./$cancer/$tcga[2]/update_fastq_final_Variants.bed";
+$update_bed_file = "$outDir/$idInput\_update_fastq_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,8,8,'fasta');
-my $variant_fasta = "./$cancer/$tcga[2]/variant_fasta.output";		
-system ("samtools faidx -r $update_bed_file $fastq_reference -o $variant_fasta") unless -e $variant_fasta;
+my $variant_fasta = "$outDir/$idInput\_variant_fasta.output";		
+system ("samtools faidx -r $update_bed_file $fastaReference -o $variant_fasta") unless -e $variant_fasta;
 		
-$update_bed_file = "./$cancer/$tcga[2]/update_depth_final_Variants.bed";
+$update_bed_file = "$outDir/$idInput\_update_depth_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,3,2,'depth');
-my $depthOut = "./$cancer/$tcga[2]/depthOut.output";
+my $depthOut = "$outDir/$idInput\_depthOut.output";
 system ("samtools depth -b $update_bed_file $bam -o $depthOut") unless -e $depthOut;
 		
 my %mpileup;
@@ -237,7 +214,8 @@ while(<IN>){
 	$depth{$line[0]}{$line[1]} = $line[2];
 }
 close(IN);
-		
+
+	
 my @list = ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY");
 foreach my $chr(@list){
 	foreach my $pos(sort {$a <=> $b} keys %{$vcf{$chr}}){
@@ -434,20 +412,6 @@ foreach my $chr(@list){
 				}
 				next if $mpileup_flag == 1;
 				
-				#sequencing quality
-			
-				
-				
-				#rb_filter
-				my $rb_flag = 0;
-				foreach my $pos1 (keys %{$rb{$chr}}){
-					if ($pos > $pos1 and $pos < $rb{$chr}{$pos1}){
-						$rb_flag = 1;
-					}
-				}
-				#next if $rb_flag == 1;
-				
-				
 				#pseudo_filter
 				my $pseudo_flag = 0;
 				foreach my $pos1 (keys %{$pseudo{$chr}}){
@@ -475,7 +439,7 @@ foreach my $chr(@list){
 					$TLOD_flag = 1;					
 				}
 				next if $TLOD_flag == 1;
-				$tmp{$chr}{$pos} = $TLOD;
+				
 				
 				
 				my $MMQ = 100;
@@ -578,8 +542,7 @@ foreach my $chr(@list){
 				
 				$vcf_flag = $vcf_flag . "Single_variants;" if $duo_flag == 1;
 				$vcf_flag = $vcf_flag . "Igg_gene;" if $igg_flag == 1;
-				$vcf_flag = $vcf_flag . "Hla_gene;" if $hla_flag == 1;
-				$vcf_flag = $vcf_flag . "Rb_gene;" if $rb_flag == 1;
+				$vcf_flag = $vcf_flag . "Hla_gene;" if $hla_flag == 1;				
 				$vcf_flag = $vcf_flag . "Pseudo_gene;" if $pseudo_flag == 1;
 				$vcf_flag = $vcf_flag . "panel_of_normal;" if $pon_flag == 1;
 				$vcf_flag = $vcf_flag . "RNA_edits;" if $edits_flag == 1;
@@ -601,6 +564,57 @@ foreach my $chr(@list){
 }
 
 
+
+sub readGTF{
+	my ($filename) = @_;
+	my %gtf;	
+	if(-e $filename){
+		open(GTF, "$filename") or die "Cannot open $filename for reading: $!\n";
+		while(<GTF>){
+			next if $_ =~ /^\#/;
+			$_=~ s/\s+$//;
+			my @line = split /\t/, $_;
+			$gtf{$line[0]}{$line[3]} = $line[4];
+		}
+		close(GTF);
+		unless (keys %gtf) {
+			print "Error: Can't find the gene information in $filename, please check your gtf annotation file\n";
+			exit;
+		} 
+	}
+	else{
+		print "Error: Can't find the GTF annotation file in $filename\n";
+		exit;
+	}
+	return  %gtf;
+}
+
+sub readEDITs{
+	my ($filename) = @_;
+	my %edits;	
+	if(-e $filename){
+		open(GTF, "$filename") or die "Cannot open $filename for reading: $!\n";
+		while(<GTF>){
+			next if $_ =~ /^\#/;
+			$_=~ s/\s+$//;
+			my @line = split /[:-]/, $_;
+			$edits{$line[0]}{$line[1]} = 1;
+			$edits{$line[0]}{$line[1]+1} = 1;
+			$edits{$line[0]}{$line[1]-1} = 1;
+		}
+		close(GTF);
+		unless (keys %edits) {
+			print "Error: Can't find the gene information in $filename, please check your gtf annotation file\n";
+			exit;
+		} 
+	}
+	else{
+		print "Error: Can't find the GTF annotation file in $filename\n";
+		exit;
+	}
+	return  %edits;
+}
+
 sub chi_square_test_uniform {
     my @data = @_;
     my $num_bins = scalar @data;
@@ -615,7 +629,6 @@ sub chi_square_test_uniform {
 
     my $degrees_of_freedom = $num_bins - 1;
     my $p_value = chisqrprob($degrees_of_freedom, $chi_square);
-
     return $p_value;
 }
 
@@ -646,14 +659,9 @@ sub mann_whitney_u_test {
 	my $pf = sprintf '%f', $prob;
  
 	
-	my $pstatus = $wilcox_test->probability_status();
-	
- 
-	#$wilcox_test->summary();
-	
-	
-	return $pf;
-	
+	my $pstatus = $wilcox_test->probability_status(); 
+	#$wilcox_test->summary();	
+	return $pf;	
    
 }
 
@@ -668,15 +676,6 @@ sub median {
         # Even number of elements, return the average of the two middle ones
         return ($numbers[int($count / 2) - 1] + $numbers[int($count / 2)]) / 2;
     }
-}
-
-sub calculate_p_value {
-    my ($u, $n1, $n2) = @_;
-    my $mean_u = $n1 * $n2 / 2;
-    my $var_u = $n1 * $n2 * ($n1 + $n2 + 1) / 12;
-    my $z = ($u - $mean_u) / sqrt($var_u);
-    my $p_value = 2 * (1 - pnorm(abs($z))); # Two-tailed test
-    return $p_value;
 }
 
 sub count_consecutive_altered_nucleotides {
