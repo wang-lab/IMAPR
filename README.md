@@ -1,7 +1,7 @@
 # IMAPR
 This repository holds the dual alignment based RNA-Seq somatic mutation, IMAPR, pipeline used to discover RNA-seq based somatic mutation.
 
-![workflow](https://github.com/wang-lab/IMAPR/blob/master/workflow.PNG)
+![workflow](https://github.com/wang-lab/IMAPR/blob/main/workflow.PNG)
 
 The pipeline accepts aligned RNA-seq data as inputs and identifies somatic mutations within it.
 ## Getting Started
