@@ -60,7 +60,7 @@ if ! command -v $hisat2 > /dev/null; then
 fi
 
 echo "perl p1.pl -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref"
-perl p1.pl -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -gene $genelist_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref -germline $germline_ref -pon $PON_ref
+#perl p1.pl -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -gene $genelist_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref -germline $germline_ref -pon $PON_ref
 
 echo ""
 

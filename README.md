@@ -1,7 +1,9 @@
-# DARSM
-This repository holds the dual alignment based RNA-Seq somatic mutation, DARSM, pipeline used to discover RNA-seq based somatic mutation.
+# IMAPR
+This repository holds the dual alignment based RNA-Seq somatic mutation, IMAPR, pipeline used to discover RNA-seq based somatic mutation.
 
+![workflow](https://github.com/wang-lab/IMAPR/blob/master/workflow.PNG)
 
+The pipeline accepts aligned RNA-seq data as inputs and identifies somatic mutations within it.
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
@@ -27,11 +29,11 @@ These instructions will get you a copy of the project up and running on your loc
    
 * The Genome Analysis Toolkit (GATK) v4.1.8.1 is required.
    * [GATK download](https://github.com/broadinstitute/gatk/releases)
-   * Note: higher versions of GATK may not be compatible with DARSM due to potential deprecation or changes to parameters used in GATK.
+   * Note: higher versions of GATK may not be compatible with IMAPR due to potential deprecation or changes to parameters used in GATK.
    
 * The Picard tool v2.22.8 is required.
    * [Picard download](https://github.com/broadinstitute/picard/releases)
-   * Note: higher versions of Picard may not be compatible with DARSM due to potential deprecation or changes to parameters used in Picard.
+   * Note: higher versions of Picard may not be compatible with IMAPR due to potential deprecation or changes to parameters used in Picard.
    
 * The samtools version 1.10 or higher is required.
    * [samtools download](https://github.com/samtools/samtools)
@@ -39,7 +41,7 @@ These instructions will get you a copy of the project up and running on your loc
    
 ### Prerequisites
 
-Follwing reference files are required to run DARSM pipeline:
+Follwing reference files are required to run IMAPR pipeline:
 
 * A fasta reference sequence file:
 	* The fasta reference sequence, GRCh38.d1.vd1.fa.tar.gz, from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
@@ -55,19 +57,19 @@ Follwing reference files are required to run DARSM pipeline:
 	* The annotation files from TCGA data portal is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
 
 * Three RNA-edits resource files:
-	* Three RNA-edits resource files were provided in DARSM/reference
-	* DARSM/reference/Darned_38.bed
-	* DARSM/reference/Radar_38.bed
-	* DARSM/reference/DRNA-EDI.bed
+	* Three RNA-edits resource files were provided in IMAPR/reference
+	* IMAPR/reference/Darned_38.bed
+	* IMAPR/reference/Radar_38.bed
+	* IMAPR/reference/DRNA-EDI.bed
 	
-### Installation of DARSM standalone program
+### Installation of IMAPR standalone program
 
-* Install DARSM using git command:
+* Install IMAPR using git command:
 ```
-   git clone https://github.com/wang-lab/DARSM.git   
+   git clone https://github.com/wang-lab/IMAPR.git   
 ```
 * Prepare your input files and update your input.txt file.
-* Type 'sh DARSM.sh' to run the program and view the help file.
+* Type 'sh IMAPR.sh' to run the program and view the help file.
 
 ### I/O Descriptions  
 #### Inputs  
@@ -109,10 +111,10 @@ This file has the following format. The order of rows doesn't matter.
 
 ### Command Line Parameters
 
-* bash command submission, user need to change the indices listed in DARSM.sh   
+* bash command submission, user need to change the indices listed in IMAPR.sh   
    
 ```
-   sh DARSM.sh pipeline_inputs.txt
+   sh IMAPR.sh pipeline_inputs.txt
 ```
 
 * The script can also be run separately with follow steps

@@ -144,7 +144,7 @@ if($modeInput eq 'RNA/DNA'){
 	
 	#preprocess for tumor input
 	my $inputResource = "Tumor";
-	#RNAPreProcessParallel($outDir, $tumorInput, $inputResource);
+	RNAPreProcessParallel($outDir, $tumorInput, $inputResource);
 	my $tumorInputMutect = "$outDir/reAligned_$inputResource.bam";
 	my $normalInputMutect = "$normalInput";
 	
@@ -152,7 +152,7 @@ if($modeInput eq 'RNA/DNA'){
 	
 	#1st variant detection	
 	my $variationIDInput = $idInput . "_first";
-	#variantsCalling($tumorInputMutect,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
+	variantsCalling($tumorInputMutect,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
 	
 	#extract Reads from tumor bam and realign with Hisat2	
 	my $tumor_ID_string = `samtools view -H $tumorInputMutect | grep SM: | head -1`;
@@ -197,7 +197,7 @@ elsif($modeInput eq 'RNA/RNA'){
 	#2nd variant detection	
 	$variationIDInput = $idInput . "_final";
 	my $tumorInputMutectReAlign = "$outDir/reAligned_hisat2_$inputResource.bam";
-	#variantsCalling($tumorInputMutectReAlign,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
+	variantsCalling($tumorInputMutectReAlign,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
 }
 else{
 	print "Error: Can't recognize input_format. The input format should be RNA/RNA or RNA/DNA.\n";

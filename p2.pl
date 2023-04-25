@@ -136,6 +136,7 @@ else{
 ################################Filter variants################################
 my $finalVCF = "$outDir/$idInput\_final_Variants.vcf";
 my $firstVCF = "$outDir/$idInput\_first_Variants.vcf";
+my $filterVCF = "$outDir/$idInput\_filter_Variants.vcf";
 
 my %firstVCF;
 open(IN, "$firstVCF") or die "Cannot open $firstVCF for reading: $!\n";
@@ -158,10 +159,6 @@ while(<IN>){
 }
 close(IN);
 
-
-
-my %pass_vcf;	
-		
 #update bed file
 my $bed_file = "$outDir/$idInput\_final_Variants.bed";
 my $update_bed_file = "$outDir/$idInput\_update_final_Variants.bed";
@@ -189,7 +186,7 @@ while(<IN>){
 	$mpileup{$line[0]}{$line[1]} = $_;	
 }
 close(IN);
-		
+
 my %fasta;
 open(IN, "$variant_fasta") or die "Cannot open $variant_fasta for reading: $!\n";
 my $temp;
@@ -209,359 +206,349 @@ close(IN);
 my %depth;
 open(IN, "$depthOut") or die "Cannot open $depthOut for reading: $!\n";		
 while(<IN>){
-	$_=~ s/\s+$//;			
-	my @line = split /\t/, $_;				
+	$_=~ s/\s+$//;
+	my @line = split /\t/, $_;
 	$depth{$line[0]}{$line[1]} = $line[2];
 }
 close(IN);
 
-	
+my %pass_vcf;
 my @list = ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY");
 foreach my $chr(@list){
-	foreach my $pos(sort {$a <=> $b} keys %{$vcf{$chr}}){
-				my $vcf_flag = "";
+	foreach my $pos(sort {$a <=> $b} keys %{$finalVCF{$chr}}){
+		my $vcf_flag = "";
+
+		my @line = split /\t/, $finalVCF{$chr}{$pos};
+		#duo_alignment
+		my $duo_flag = 1;
+		if (exists $firstVCF{$chr}{$pos}){				
+			$duo_flag = 0;
+		}				
+		next if $duo_flag == 1;
 				
-				my @line = split /\t/, $vcf{$chr}{$pos};
-				#duo_alignment
-				my $duo_flag = 1;
-				if (exists $raw{$chr}{$pos}){				
-					$duo_flag = 0;
-				}				
-				next if $duo_flag == 1;
+		#cluster_filter
+		my $cluster_flag = 0;			
+		if ($line[8] =~ /PGT/){
+			$cluster_flag = 1;			
+		}
+		next if $cluster_flag == 1;
 				
-				#cluster_filter
-				my $cluster_flag = 0;			
-				if ($line[8] =~ /PGT/){
-					$cluster_flag = 1;			
-				}
-				next if $cluster_flag == 1;
-				
-				#edits_filter
-				my $edits_flag = 0;			
-				if (exists $edits{$chr}{$pos}){
-					$edits_flag = 1;			
-				}
-				next if $edits_flag == 1;
+		#edits_filter
+		my $edits_flag = 0;			
+		if (exists $Radar{$chr}{$pos} or exists $Darned{$chr}{$pos} or exists $REDI{$chr}{$pos}){
+			$edits_flag = 1;			
+		}
+		next if $edits_flag == 1;
 								
-				#igg_filter
-				my $igg_flag = 0;
-				foreach my $pos1 (keys %{$igg{$chr}}){
-					if ($pos > $pos1 and $pos < $igg{$chr}{$pos1}){
-						$igg_flag = 1;
+		#igg_filter
+		my $igg_flag = 0;
+		foreach my $pos1 (keys %{$igg{$chr}}){
+			if ($pos > $pos1 and $pos < $igg{$chr}{$pos1}){
+				$igg_flag = 1;
+			}
+		}
+		next if $igg_flag == 1;
+				
+		#hla_filter
+		my $hla_flag = 0;
+		foreach my $pos1 (keys %{$hla{$chr}}){
+			if ($pos > $pos1 and $pos < $hla{$chr}{$pos1}){
+				$hla_flag = 1;
+			}
+		}
+		next if $hla_flag == 1;
+				
+		#pon_filter
+		my $pon_flag = 0;				
+		if(length($line[3]) == 1 and length($line[4]) == 1){
+			if (exists $pon{$chr}{$pos} and exists $ponDetail{$chr}{$pos}{"$line[3]_$line[3]"}){
+				$pon_flag = 1;
+			}
+		}
+		else{
+			if (exists $pon{$chr}{$pos} or exists $pon{$chr}{$pos+1} or exists $pon{$chr}{$pos-1}){
+				$pon_flag = 1;			
+			}
+		}
+		next if $pon_flag == 1;
+				
+		#length_filter
+		my $length_flag = 0;			
+		if (length($line[3]) > 5 or length($line[4]) > 5){
+			$length_flag = 1;			
+		}
+		next if $length_flag == 1;
+
+		#normal_cutoff
+		my $normal_flag = 0;
+		my @normal = split /:/, $line[10];
+		my @normal_af = split /,/, $normal[1];
+		my @normal_per = split /,/, $normal[2];
+		my $normal_af = max(@normal_per);
+		shift @normal_af;
+		my $normal_frac = max(@normal_af);
+				
+		if ($normal_af > 0.1 or $normal_frac > 1){
+			$normal_flag = 1;
+		}
+		next if $normal_flag == 1;
+				
+		#PON
+		if ($line[7] =~ /PON/){
+			$pon_flag = 1;			
+		}
+		next if $pon_flag == 1;
+				
+		#tandem_repeats
+		my $tandem_flag = 0;
+		if ($line[7] =~ /STR/ or $line[7] =~ /RU/){
+			$tandem_flag = 1;
+		}
+		next if $tandem_flag == 1;
+				
+		#multiallelic
+		my $multiallelic_flag = 0;			
+		if ($line[4] =~ /\,/){
+			$multiallelic_flag = 1;			
+		}
+		next if $multiallelic_flag == 1;
+				
+		#mpileup
+		my $mpileup_flag = 0;
+		my @mapping_qualities_ref;
+		my @mapping_qualities_alt;
+		my @ref_postive;
+		my @ref_negative;
+		my @alt_postive;
+		my @alt_negative;
+		my $forward_all = 0;
+		my $reverse_all = 0;
+		my $forward_alt = 0;
+		my $reverse_alt = 0;
+		my $pileup_out;
+		#check if there is any reads aligned in this region by samtools.
+		if(exists $mpileup{$chr}{$pos}){
+			my ($seq, $pos, $ref_base, $coverage, $pileup, $quals) = split /\t/, $mpileup{$chr}{$pos};
+			$pileup_out = $pileup;
+			#check if there is any bases was detected with alteration in tumor sample by samtools.
+			my $temp_char = '';
+			if ($pileup =~ /[ACGTNacgtn]/){
+				my $i = 0;							
+				while ($i < length($pileup)){
+					my $char = substr($pileup, $i, 1);							
+					if ($char eq '^') {
+						$i += 2; # Skip the next character (mapping quality)
+						$temp_char = $char;
+						next;
+					} 
+					elsif ($char eq '$'){
+						$i++; # Just skip the current character (read end)
+						$temp_char = $char;
+						next;
 					}
-				}
-				next if $igg_flag == 1;
-				
-				#hla_filter
-				my $hla_flag = 0;
-				foreach my $pos1 (keys %{$hla{$chr}}){
-					if ($pos > $pos1 and $pos < $hla{$chr}{$pos1}){
-						$hla_flag = 1;
-					}
-				}
-				next if $hla_flag == 1;
-				
-				#pon_filter
-				my $pon_flag = 0;			
-				#if (exists $pon{$chr}{$pos} or exists $pon{$chr}{$pos+1} or exists $pon{$chr}{$pos-1}){
-				#	$pon_flag = 1;			
-				#}
-				if(length($line[3]) == 1 and length($line[4]) == 1){
-					if (exists $pon{$chr}{$pos} and exists $ponDetail{$chr}{$pos}{"$line[3]_$line[3]"}){
-						$pon_flag = 1;
-					}
-				}
-				else{
-					if (exists $pon{$chr}{$pos} or exists $pon{$chr}{$pos+1} or exists $pon{$chr}{$pos-1}){
-						$pon_flag = 1;			
-					}
-				}
-				next if $pon_flag == 1;
-				
-				#length_filter
-				my $length_flag = 0;			
-				if (length($line[3]) > 5 or length($line[4]) > 5){
-					$length_flag = 1;			
-				}
-				#next if $length_flag == 1;
-				
-				#normal_cutoff
-				my $normal_flag = 0;
-				my @normal = split /:/, $line[10];
-				my @normal_af = split /,/, $normal[1];
-				my @normal_per = split /,/, $normal[2];
-				my $normal_af = max(@normal_per);
-				shift @normal_af;
-				my $normal_frac = max(@normal_af);
-				#next if $normal_af > 0.1;		##high AF
-				#next if $normal_frac > 1;		##high fraction
-				if ($normal_af > 0.1 or $normal_frac > 1){
-					$normal_flag = 1;
-				}
-				next if $normal_flag == 1;
-				
-				#PON
-				if ($line[7] =~ /PON/){
-					$pon_flag = 1;			
-				}
-				next if $pon_flag == 1;
-				
-				#tandem_repeats
-				my $tandem_flag = 0;
-				if ($line[7] =~ /STR/ or $line[7] =~ /RU/){
-					$tandem_flag = 1;
-				}
-				next if $tandem_flag == 1;
-				
-				#multiallelic
-				my $multiallelic_flag = 0;			
-				if ($line[4] =~ /\,/){
-					$multiallelic_flag = 1;			
-				}
-				next if $multiallelic_flag == 1;
-				
-				#mpileup
-				my $mpileup_flag = 0;
-				my @mapping_qualities_ref;
-				my @mapping_qualities_alt;
-				my @ref_postive;
-				my @ref_negative;
-				my @alt_postive;
-				my @alt_negative;
-				my $forward_all = 0;
-				my $reverse_all = 0;
-				my $forward_alt = 0;
-				my $reverse_alt = 0;
-				my $pileup_out;
-				#check if there is any reads aligned in this region by samtools.
-				if(exists $mpileup{$chr}{$pos}){
-					my ($seq, $pos, $ref_base, $coverage, $pileup, $quals) = split /\t/, $mpileup{$chr}{$pos};
-					$pileup_out = $pileup;
-					#check if there is any bases was detected with alteration in tumor sample by samtools.
-					my $temp_char = '';
-					if ($pileup =~ /[ACGTNacgtn]/){
-						my $i = 0;							
-						while ($i < length($pileup)) {
-							my $char = substr($pileup, $i, 1);
-							
-							if ($char eq '^') {
-								$i += 2; # Skip the next character (mapping quality)
-								$temp_char = $char;
-								next;
-							} elsif ($char eq '$') {
-								$i++; # Just skip the current character (read end)
-								$temp_char = $char;
-								next;
-							}
-							elsif ($char eq '+' or $char eq '-'){
-								$i++;
-								if($temp_char eq '.'){
-									$forward_alt++;
-								}
-								elsif($temp_char eq ','){
-									$reverse_alt++;
-								}
-								$temp_char = $char;
-								next;
-							}
-							elsif ($char =~ /[0-9]/){
-								$i = $i + $char + 1;								
-								$temp_char = $char;
-								next;
-							}
-							$temp_char = $char;
-							if ($char eq "."){
-								push @mapping_qualities_ref, ord(substr($quals, 0, 1)) - 33;
-								push @ref_postive, $char;
-								$quals = substr($quals, 1); # Remove the first character from $quals
-								$forward_all++;
-							}
-							elsif($char eq ",") {
-								push @mapping_qualities_ref, ord(substr($quals, 0, 1)) - 33;
-								push @ref_negative, $char;
-								$quals = substr($quals, 1); # Remove the first character from $quals
-								$reverse_all++;
-							}
-							elsif ($char =~ /[ACGTN]/) {
-								push @mapping_qualities_alt, ord(substr($quals, 0, 1)) - 33;
-								push @alt_postive, $char;
-								$quals = substr($quals, 1); # Remove the first character from $quals
-								$forward_alt++;
-								$forward_all++;
-							}
-							elsif($char=~ /[acgtn]/){
-								push @mapping_qualities_alt, ord(substr($quals, 0, 1)) - 33;
-								push @alt_negative, $char;
-								$quals = substr($quals, 1); # Remove the first character from $quals
-								$reverse_alt++;
-								$reverse_all++;
-							}
-							$i++;
+					elsif ($char eq '+' or $char eq '-'){
+						$i++;
+						if($temp_char eq '.'){
+							$forward_alt++;
 						}
-						#my $alt_length = scalar(@mapping_qualities_alt);
-						
-						$mpileup_flag = 1 if ($forward_alt+$reverse_alt) <= 2;	
-						$mpileup_flag = 1 if ($forward_alt+$reverse_alt)/($forward_all+$reverse_all) < 0.1;	
+						elsif($temp_char eq ','){
+							$reverse_alt++;
+						}
+						$temp_char = $char;
+						next;
 					}
-					else{
-						$mpileup_flag = 1;
+					elsif ($char =~ /[0-9]/){
+						$i = $i + $char + 1;								
+						$temp_char = $char;
+						next;
 					}
-				}
-				else{
-					$mpileup_flag = 1;
-				}
-				next if $mpileup_flag == 1;
-				
-				#pseudo_filter
-				my $pseudo_flag = 0;
-				foreach my $pos1 (keys %{$pseudo{$chr}}){
-					if ($pos > $pos1 and $pos < $pseudo{$chr}{$pos1}){
-						$pseudo_flag = 1;
+					$temp_char = $char;
+					if ($char eq "."){
+						push @mapping_qualities_ref, ord(substr($quals, 0, 1)) - 33;
+						push @ref_postive, $char;
+						$quals = substr($quals, 1); # Remove the first character from $quals
+						$forward_all++;
 					}
-				}
-				next if $pseudo_flag == 1;
-				
-				
-				#
-				my $MPOS = 100;
-				$MPOS = $1 if $line[7] =~ /;MPOS=(\d+);/ ;
-				my $pos_flag = 0;
-				if($MPOS < 6){
-					$pos_flag = 1;
-				}
-				next if $pos_flag ==1;
-				
-				my $TLOD = 100;
-				$TLOD = $1 if $line[7] =~ /;TLOD=(\S+)/;
-				$TLOD = 100 if $TLOD =~ /\,/; 
-				my $TLOD_flag = 0;
-				if($TLOD < 5.6){
-					$TLOD_flag = 1;					
-				}
-				next if $TLOD_flag == 1;
-				
-				
-				
-				my $MMQ = 100;
-				$MMQ = $1 if $line[7] =~ /;MMQ=(\S+);MPOS/;
-				my $MMQ_flag = 0;
-				my @MMQ = split /,/, $MMQ;
-				foreach my $mmq (@MMQ){
-					if($mmq < 50){
-						$MMQ_flag = 1;
+					elsif($char eq ",") {
+						push @mapping_qualities_ref, ord(substr($quals, 0, 1)) - 33;
+						push @ref_negative, $char;
+						$quals = substr($quals, 1); # Remove the first character from $quals
+						$reverse_all++;
 					}
-				}
-				next if $MMQ_flag ==1;
-				
-				
-				#tumor_cutoff
-				my $tumor_flag = 1;
-				my @tumor = split /:/, $line[9];			
-				my @tumor_af = split /,/, $tumor[1];
-				my @tumor_per = split /,/, $tumor[2];			
-				
-				my $tumor_depth =sum(@tumor_af);
-				shift @tumor_af;			
-				my $tumor_frac = max(@tumor_af);
-				my $tumor_af = max(@tumor_per);
-				
-				$tumor_flag = 0 if $tumor_af >= 0.1 and $tumor_frac >= 3;
-				next if $tumor_flag ==1;
-				
-				#high mutation frequency	
-				my $high_flag = 0;
-				if($tumor_depth > 10 and $tumor_af > 0.95){
-					$high_flag = 1;
-				}
-				next if $high_flag == 1;
-				$vcf_flag = $vcf_flag . "High_AF_in_variants;" if $high_flag == 1;
-				
-				
-				
-				
-			
-							
-				my $Mono_flag = 0;				
-				my @seq = split//, $fasta{$chr}{$pos};
-				my $left_consec;
-				my $right_consec;				
-			
-				#Check single nucleotide changes
-				if(length($line[3]) == 1 and length($line[4]) == 1){
-					my $mutation_position = 8;
-					my ($left_count, $right_count) = count_consecutive_altered_nucleotides($fasta{$chr}{$pos}, $mutation_position, $line[4]);
-					if (($left_count+$right_count) >= 4){
-						$Mono_flag = 1;
+					elsif ($char =~ /[ACGTN]/) {
+						push @mapping_qualities_alt, ord(substr($quals, 0, 1)) - 33;
+						push @alt_postive, $char;
+						$quals = substr($quals, 1); # Remove the first character from $quals
+						$forward_alt++;
+						$forward_all++;
 					}
-				}				
-				next if $Mono_flag ==1;				
-				$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $Mono_flag == 1;
-				
-				
-				
-			
-				my $sequencing_quality_flag = 0;
-				my $logFC_sequencing_quality = 0;
-				if ($mpileup_flag == 0 and scalar(@mapping_qualities_ref) > 2 and scalar(@mapping_qualities_alt) > 2){
-					my $p = mann_whitney_u_test(\@mapping_qualities_ref,\@mapping_qualities_alt);
-					$p = $p/2;
-					my $med = median(@mapping_qualities_alt);
-					my $med2 = median(@mapping_qualities_ref);
-					$logFC_sequencing_quality = log(median(@mapping_qualities_alt)/median(@mapping_qualities_ref))/log(2);					
-					$sequencing_quality_flag = 1 if $p <= 0.05 and $logFC_sequencing_quality < -0.5;					
-				}
-				next if $sequencing_quality_flag == 1;
-				
-				my $coverage_flag = 0;
-				#extract the coverage distribution around a mutation site
-				my @coverage;
-				my $i = $line[1]-2;							
-				while ($i <= $line[1]+2) {
-					if(exists  $depth{$line[0]}{$i}){
-						push @coverage, $depth{$line[0]}{$i};
-					}
-					else{
-						push @coverage, 0;
+					elsif($char=~ /[acgtn]/){
+						push @mapping_qualities_alt, ord(substr($quals, 0, 1)) - 33;
+						push @alt_negative, $char;
+						$quals = substr($quals, 1); # Remove the first character from $quals
+						$reverse_alt++;
+						$reverse_all++;
 					}
 					$i++;
-				}			
+				}
+				$mpileup_flag = 1 if ($forward_alt+$reverse_alt) <= 2;	
+				$mpileup_flag = 1 if ($forward_alt+$reverse_alt)/($forward_all+$reverse_all) < 0.1;	
+			}
+			else{
+				$mpileup_flag = 1;
+			}
+		}
+		else{
+			$mpileup_flag = 1;
+		}
+		next if $mpileup_flag == 1;
 				
-				my $pvalue = chi_square_test_uniform(@coverage);				
-				if($pvalue < 0.05){
-					if ($coverage[2] == 0){
-						$coverage_flag = 1;
-					}
-					elsif(max(@coverage)/$coverage[2] > 1.5){
-							$coverage_flag = 1;
-					}
-					elsif(($coverage[2]+1)/(min(@coverage)+1) > 1.5){
-						$coverage_flag = 1;
-					}					
-				}				
-				next if $coverage_flag == 1;
+		#pseudo_filter
+		my $pseudo_flag = 0;
+		foreach my $pos1 (keys %{$pseudo{$chr}}){
+			if ($pos > $pos1 and $pos < $pseudo{$chr}{$pos1}){
+				$pseudo_flag = 1;
+			}
+		}
+		next if $pseudo_flag == 1;				
 				
-				$vcf_flag = $vcf_flag . "Single_variants;" if $duo_flag == 1;
-				$vcf_flag = $vcf_flag . "Igg_gene;" if $igg_flag == 1;
-				$vcf_flag = $vcf_flag . "Hla_gene;" if $hla_flag == 1;				
-				$vcf_flag = $vcf_flag . "Pseudo_gene;" if $pseudo_flag == 1;
-				$vcf_flag = $vcf_flag . "panel_of_normal;" if $pon_flag == 1;
-				$vcf_flag = $vcf_flag . "RNA_edits;" if $edits_flag == 1;
-				$vcf_flag = $vcf_flag . "Long_edits;" if $length_flag == 1;
-				$vcf_flag = $vcf_flag . "Cluster_events;" if $cluster_flag == 1;
-				$vcf_flag = $vcf_flag . "Germline_risk;" if $normal_flag == 1;
-				$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $tandem_flag == 1;
-				$vcf_flag = $vcf_flag . "multiallelic;" if $multiallelic_flag == 1;
-				$vcf_flag = $vcf_flag . "Softclipping;" if $pos_flag == 1;			
-				$vcf_flag = $vcf_flag . "Low_tumor_reads;" if $tumor_flag == 1;
-				$vcf_flag = $vcf_flag . "Low_TLOD;" if $TLOD_flag == 1;
-				$vcf_flag = $vcf_flag . "Low_mapping_quality;" if $MMQ_flag == 1;					
+		#position_filter
+		my $MPOS = 100;
+		$MPOS = $1 if $line[7] =~ /;MPOS=(\d+);/ ;
+		my $pos_flag = 0;
+		if($MPOS < 6){
+			$pos_flag = 1;
+		}
+		next if $pos_flag ==1;
+		
+		#TLOD_filter		
+		my $TLOD = 100;
+		$TLOD = $1 if $line[7] =~ /;TLOD=(\S+)/;
+		$TLOD = 100 if $TLOD =~ /\,/; 
+		my $TLOD_flag = 0;
+		if($TLOD < 5.6){
+			$TLOD_flag = 1;					
+		}
+		next if $TLOD_flag == 1;
 				
-				$vcf_flag = "PASS" if length($vcf_flag) == 0;
-				$pass_vcf{$chr}{$pos} = $vcf{$chr}{$pos};
-				#$pass_vcf{$chr}{$pos} = $vcf{$chr}{$pos} if $vcf_flag eq "PASS";				
+		#Mapping_quality_filter
+		my $MMQ = 100;
+		$MMQ = $1 if $line[7] =~ /;MMQ=(\S+);MPOS/;
+		my $MMQ_flag = 0;
+		my @MMQ = split /,/, $MMQ;
+		foreach my $mmq (@MMQ){
+			if($mmq < 50){
+				$MMQ_flag = 1;
+			}
+		}
+		next if $MMQ_flag ==1;
+						
+		#tumor_cutoff
+		my $tumor_flag = 1;
+		my @tumor = split /:/, $line[9];			
+		my @tumor_af = split /,/, $tumor[1];
+		my @tumor_per = split /,/, $tumor[2];			
 				
+		my $tumor_depth =sum(@tumor_af);
+		shift @tumor_af;			
+		my $tumor_frac = max(@tumor_af);
+		my $tumor_af = max(@tumor_per);
+				
+		$tumor_flag = 0 if $tumor_af >= 0.1 and $tumor_frac >= 3;
+		next if $tumor_flag ==1;
+				
+		#high mutation frequency	
+		my $high_flag = 0;
+		if($tumor_depth > 10 and $tumor_af > 0.95){
+			$high_flag = 1;
+		}
+		next if $high_flag == 1;
+		$vcf_flag = $vcf_flag . "High_AF_in_variants;" if $high_flag == 1;
+								
+		my $Mono_flag = 0;				
+		my @seq = split//, $fasta{$chr}{$pos};
+		my $left_consec;
+		my $right_consec;	
+		
+		#Check single nucleotide changes
+		if(length($line[3]) == 1 and length($line[4]) == 1){
+			my $mutation_position = 8;
+			my ($left_count, $right_count) = count_consecutive_altered_nucleotides($fasta{$chr}{$pos}, $mutation_position, $line[4]);
+			if (($left_count+$right_count) >= 4){
+				$Mono_flag = 1;
+			}
+		}				
+		next if $Mono_flag ==1;				
+		$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $Mono_flag == 1;
+				
+		my $sequencing_quality_flag = 0;
+		my $logFC_sequencing_quality = 0;
+		if ($mpileup_flag == 0 and scalar(@mapping_qualities_ref) > 2 and scalar(@mapping_qualities_alt) > 2){
+			my $p = mann_whitney_u_test(\@mapping_qualities_ref,\@mapping_qualities_alt);
+			$p = $p/2;
+			my $med = median(@mapping_qualities_alt);
+			my $med2 = median(@mapping_qualities_ref);
+			$logFC_sequencing_quality = log(median(@mapping_qualities_alt)/median(@mapping_qualities_ref))/log(2);					
+			$sequencing_quality_flag = 1 if $p <= 0.05 and $logFC_sequencing_quality < -0.5;					
+		}
+		next if $sequencing_quality_flag == 1;
+				
+		my $coverage_flag = 0;
+		#extract the coverage distribution around a mutation site
+		my @coverage;
+		my $i = $line[1]-2;							
+		while ($i <= $line[1]+2) {
+			if(exists  $depth{$line[0]}{$i}){
+				push @coverage, $depth{$line[0]}{$i};
+			}
+			else{
+				push @coverage, 0;
+			}
+			$i++;
+		}			
+				
+		my $pvalue = chi_square_test_uniform(@coverage);				
+		if($pvalue < 0.05){
+			if ($coverage[2] == 0){
+				$coverage_flag = 1;
+			}
+			elsif(max(@coverage)/$coverage[2] > 1.5){
+				$coverage_flag = 1;
+			}
+			elsif(($coverage[2]+1)/(min(@coverage)+1) > 1.5){
+				$coverage_flag = 1;
+			}					
+		}				
+		next if $coverage_flag == 1;
+				
+		$vcf_flag = $vcf_flag . "Single_variants;" if $duo_flag == 1;
+		$vcf_flag = $vcf_flag . "Igg_gene;" if $igg_flag == 1;
+		$vcf_flag = $vcf_flag . "Hla_gene;" if $hla_flag == 1;				
+		$vcf_flag = $vcf_flag . "Pseudo_gene;" if $pseudo_flag == 1;
+		$vcf_flag = $vcf_flag . "panel_of_normal;" if $pon_flag == 1;
+		$vcf_flag = $vcf_flag . "RNA_edits;" if $edits_flag == 1;
+		$vcf_flag = $vcf_flag . "Long_edits;" if $length_flag == 1;
+		$vcf_flag = $vcf_flag . "Cluster_events;" if $cluster_flag == 1;
+		$vcf_flag = $vcf_flag . "Germline_risk;" if $normal_flag == 1;
+		$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $tandem_flag == 1;
+		$vcf_flag = $vcf_flag . "multiallelic;" if $multiallelic_flag == 1;
+		$vcf_flag = $vcf_flag . "Softclipping;" if $pos_flag == 1;			
+		$vcf_flag = $vcf_flag . "Low_tumor_reads;" if $tumor_flag == 1;
+		$vcf_flag = $vcf_flag . "Low_TLOD;" if $TLOD_flag == 1;
+		$vcf_flag = $vcf_flag . "Low_mapping_quality;" if $MMQ_flag == 1;					
+				
+		$vcf_flag = "PASS" if length($vcf_flag) == 0;
+		$pass_vcf{$chr}{$pos} = $finalVCF{$chr}{$pos} if $vcf_flag eq "PASS";
 	}
 }
+open(VCF, ">$filterVCF") or die "Cannot open $filterVCF for reading: $!\n";
+foreach my $chr(@list){
+	foreach my $pos(sort {$a <=> $b} keys %{$pass_vcf{$chr}}){
+		my @line = split /\t/, $pass_vcf{$chr}{$pos};
+		print VCF "$line[0]\t$line[1]\t$line[2]\t$line[3]\t$line[4]\t$line[5]\tPASS\t$line[7]\t$line[8]\t$line[9]\t$line[10]\n";
+	}
+}
+close(VCF);
 
 
 
