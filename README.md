@@ -106,37 +106,37 @@ This file has the following format. The order of rows doesn't matter.
   darned_ref	<path-to-darned-reference>
   REDI_ref	<path-to-REDI-reference>  
 ```  
-***sample_name*** is the name of the sample, used to name the output folder of the run. For consistency we recommend that sample_name is the same as the name of the raw data folder.
-***input_format*** dictates whether the input files both RNA-seq data or RNA vs WXS data.
-***tumor_input*** is path to aligned bam file for tumor sample.
-***normal_input*** is path to aligned bam file for normal sample. 
-***out_prefix*** is path to output folder. 
+***sample_name*** is the name of the sample, used to name the output folder of the run. For consistency we recommend that sample_name is the same as the name of the raw data folder.  
+***input_format*** dictates whether the input files both RNA-seq data or RNA vs WXS data.  
+***tumor_input*** is path to aligned bam file for tumor sample.  
+***normal_input*** is path to aligned bam file for normal sample.  
+***out_prefix*** is path to output folder.  
 
-***gatk*** is path to gatk tool package.
-***picard*** is path to picard jar file.
-***samtools*** is path to samtools package. 
-***hisat2*** is path to hisat2 package.
+***gatk*** is path to gatk tool package  
+***picard*** is path to picard jar file.  
+***samtools*** is path to samtools package.  
+***hisat2*** is path to hisat2 package.  
  
-***fasta_ref*** is path to genome fasta reference.
-***RNA_edits_ref*** is path to RNA-edits reference.
-***germline_ref*** is path to germline resource reference.
-***PON_ref*** is path to panel of normal reference.
+***fasta_ref*** is path to genome fasta reference.  
+***RNA_edits_ref*** is path to RNA-edits reference.  
+***germline_ref*** is path to germline resource reference.  
+***PON_ref*** is path to panel of normal reference.  
 
-***fasta_ref*** is path to genome fasta reference.
-***gtf_ref*** is path to gtf reference.
-***genelist_ref*** is path to gene list reference.
-***RNA_edits_ref*** is path to RNA-edits reference.
-***dbsnp_ref*** is path to dbsnp reference.
-***germline_ref*** is path to germline reference.
-***PON_ref*** is path to PON reference.
-***hisat_ref*** is path to hisat reference.
-***igg_ref*** is path to igg gene list reference.
-***hla_ref*** is path to hla gene list reference.
-***pseudo_ref*** is path to pseudo-gene list reference.
-***tcga_PON_ref*** is path to tcga PON reference.
-***radar_ref*** is path to RADAR reference.
-***darned_ref*** is path to DARNED reference.
-***REDI_ref*** is path to REDI reference.
+***fasta_ref*** is path to genome fasta reference.  
+***gtf_ref*** is path to gtf reference.  
+***genelist_ref*** is path to gene list reference.  
+***RNA_edits_ref*** is path to RNA-edits reference.  
+***dbsnp_ref*** is path to dbsnp reference.  
+***germline_ref*** is path to germline reference.  
+***PON_ref*** is path to PON reference.  
+***hisat_ref*** is path to hisat reference.  
+***igg_ref*** is path to igg gene list reference.  
+***hla_ref*** is path to hla gene list reference.  
+***pseudo_ref*** is path to pseudo-gene list reference.  
+***tcga_PON_ref*** is path to tcga PON reference.  
+***radar_ref*** is path to RADAR reference.  
+***darned_ref*** is path to DARNED reference.  
+***REDI_ref*** is path to REDI reference.  
 
 ### Command Line Parameters
 
