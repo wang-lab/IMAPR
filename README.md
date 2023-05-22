@@ -82,32 +82,61 @@ This file has the following format. The order of rows doesn't matter.
   tumor_input	<path-to-bam-file>
   normal_input	<path-to-bam-file>
   out_prefix	<path-to-output-folder>
-  
+
   #tools_reference
   gatk	<path-to-gatk-package>
   picard	<path-to-picard-package>
   samtools	<path-to-samtools-package>
-  
+  hisat2	<path-to-hisat2-package>
+
   #reference
   fasta_ref	<path-to-fasta-reference>
-  RNA_edits_ref	<path-to-rna-edits-referenc>
-  germline_ref	<path-to-germline-referenc>
-  PON_ref	<path-to-PON-referenc>
+  gtf_ref	<path-to-gtf-reference>
+  genelist_ref	<path-to-gene-list-reference>
+  RNA_edits_ref	<path-to-rna-edits-reference>
+  dbsnp_ref	<path-to-dbsnp-reference>
+  germline_ref	<path-to-germline-reference>
+  PON_ref	<path-to-PON-reference>
+  hisat_ref	<path-to-hisat-ref-reference>
+  igg_ref	<path-to-igg-reference>
+  hla_ref	<path-to-hla-reference>
+  pseudo_ref	<path-to-pseudo-reference>
+  tcga_PON_ref	<path-to-tcga-PON-reference>
+  radar_ref	<path-to-radar-reference>
+  darned_ref	<path-to-darned-reference>
+  REDI_ref	<path-to-REDI-reference>  
 ```  
-***sample_name*** is the name of the sample, used to name the output folder of the run. For consistency we recommend that sample_name is the same as the name of the raw data folder  
-***input_format*** dictates whether the input files both RNA-seq data or RNA vs WXS data.  
-***tumor_input*** is path to aligned bam file for tumor sample.  
+***sample_name*** is the name of the sample, used to name the output folder of the run. For consistency we recommend that sample_name is the same as the name of the raw data folder.
+***input_format*** dictates whether the input files both RNA-seq data or RNA vs WXS data.
+***tumor_input*** is path to aligned bam file for tumor sample.
 ***normal_input*** is path to aligned bam file for normal sample. 
 ***out_prefix*** is path to output folder. 
 
-***gatk*** dictates whether the input files both RNA-seq data or RNA vs WXS data.  
-***picard*** is path to aligned bam file for tumor sample.  
-***samtools*** is path to aligned bam file for normal sample. 
+***gatk*** is path to gatk tool package.
+***picard*** is path to picard jar file.
+***samtools*** is path to samtools package. 
+***hisat2*** is path to hisat2 package.
+ 
+***fasta_ref*** is path to genome fasta reference.
+***RNA_edits_ref*** is path to RNA-edits reference.
+***germline_ref*** is path to germline resource reference.
+***PON_ref*** is path to panel of normal reference.
 
-***fasta_ref*** is path to genome fasta reference.  
-***RNA_edits_ref*** is path to RNA-edits reference.  
-***germline_ref*** is path to germline resource reference.  
-***PON_ref*** is path to panel of normal reference.  
+***fasta_ref*** is path to genome fasta reference.
+***gtf_ref*** is path to gtf reference.
+***genelist_ref*** is path to gene list reference.
+***RNA_edits_ref*** is path to RNA-edits reference.
+***dbsnp_ref*** is path to dbsnp reference.
+***germline_ref*** is path to germline reference.
+***PON_ref*** is path to PON reference.
+***hisat_ref*** is path to hisat reference.
+***igg_ref*** is path to igg gene list reference.
+***hla_ref*** is path to hla gene list reference.
+***pseudo_ref*** is path to pseudo-gene list reference.
+***tcga_PON_ref*** is path to tcga PON reference.
+***radar_ref*** is path to RADAR reference.
+***darned_ref*** is path to DARNED reference.
+***REDI_ref*** is path to REDI reference.
 
 ### Command Line Parameters
 
@@ -120,33 +149,29 @@ This file has the following format. The order of rows doesn't matter.
 * The script can also be run separately with follow steps
   
 ```
-   perl p1.pl [options]... -Tumor *.bam -Normal *.bam -R /directory/to/reference -outPrefix /directory/to/output
-   perl p2.pl [options]... -inputDir *.bam -/directory/to/p1.pl/output
-   perl p3.pl [options]... -inputDir *.bam -/directory/to/p1.pl/output
+   perl detect_variants.pl [options]... -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -gene $genelist_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref -germline $germline_ref -pon $PON_ref
+   perl filter_variants.pl [options]... -ID $sample_name -O $out_prefix -R $fasta_ref -igg $igg_ref -hla $hla_ref -pseudo $pseudo_ref -tcga $tcga_PON_ref -radar $radar_ref -darned $darned_ref -redi $REDI_ref
+   perl machine_learning.pl [options]... -ID $sample_name -O $out_prefix -gtf $gtf_ref
 ```
 
 ### Outputs
 
 If the file is read in correctly, the following output files will be generated in output folder.
-* 1st Variants files
+* 1st Mutect2 Variants files
 ```
-   first_variants.txt
+   [sample_ID]_first_variants.txt
 ```
-* Variants files
+* Repeated Mutect2 Variants files
 ```
-   final_variants.txt
+   [sample_ID]_final_variants.txt
+```
+* samtools mpileup Variants files
+```
+   [sample_ID]_bcftools.output
 ```
 * Machine-learning filtered Variants files
 ```
-   machine_learning_variants.txt
-```
-* Filtered somatic mutation files
-```
-   filtered_final_variants.txt
-```
-* annotated somatic mutation files
-```
-   anno_filtered_final_variants.txt
+   [sample_ID]_mc_filter_Variants.vcf
 ```
 ## License & copyright
 

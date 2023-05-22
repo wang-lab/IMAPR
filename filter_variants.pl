@@ -167,7 +167,10 @@ update_bed($bed_file,$update_bed_file,1,0,'mpileup');
 my $bam = "$outDir/reAligned_hisat2_Tumor.bam";
 my $mpileupout = "$outDir/$idInput\_mpileup2.output";		
 system ("samtools mpileup -d 1000000 -l $update_bed_file -f $fastaReference $bam -o $mpileupout 2>/dev/null") unless -e $mpileupout;
-		
+
+my $bcftools_outfiles = "$outDir/$idInput\_bcftools.output";				
+system("bcftools mpileup -d 1000000 -f $fastaReference -R $update_bed_file $bam -Ov -o $bcftools_outfiles 2>/dev/null") unless -e $bcftools_outfiles;
+
 $update_bed_file = "$outDir/$idInput\_update_fastq_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,8,8,'fasta');
 my $variant_fasta = "$outDir/$idInput\_variant_fasta.output";		
@@ -202,7 +205,18 @@ while(<IN>){
 	}	
 }
 close(IN);
-		
+
+my %bcf;
+open(IN, "$bcftools_outfiles") or die "Cannot open $bcftools_outfiles for reading: $!\n";		
+while(<IN>){
+	next if $_ =~ /^#/;
+	$_=~ s/\s+$//;			
+	my @line = split /\t/, $_;				
+	$bcf{$line[0]}{$line[1]} = $_;
+}
+close(IN);
+
+	
 my %depth;
 open(IN, "$depthOut") or die "Cannot open $depthOut for reading: $!\n";		
 while(<IN>){
@@ -402,7 +416,23 @@ foreach my $chr(@list){
 			$mpileup_flag = 1;
 		}
 		next if $mpileup_flag == 1;
+		
+		#bcftools
+		my $bcf_flag = 0;				
+		if (exists $bcf{$chr}{$pos}){
+			my @bcf = split /\t/, $bcf{$chr}{$pos};
+			if ($bcf[4] =~ /[ATCGatcg]/){
 				
+			}
+			else{
+				$bcf_flag = 1
+			}
+		}
+		else{
+			$bcf_flag = 1;
+		}
+		next if $bcf_flag == 1;
+		
 		#pseudo_filter
 		my $pseudo_flag = 0;
 		foreach my $pos1 (keys %{$pseudo{$chr}}){
@@ -463,7 +493,7 @@ foreach my $chr(@list){
 			$high_flag = 1;
 		}
 		next if $high_flag == 1;
-		$vcf_flag = $vcf_flag . "High_AF_in_variants;" if $high_flag == 1;
+		
 								
 		my $Mono_flag = 0;				
 		my @seq = split//, $fasta{$chr}{$pos};
@@ -479,7 +509,7 @@ foreach my $chr(@list){
 			}
 		}				
 		next if $Mono_flag ==1;				
-		$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $Mono_flag == 1;
+		
 				
 		my $sequencing_quality_flag = 0;
 		my $logFC_sequencing_quality = 0;
@@ -530,13 +560,14 @@ foreach my $chr(@list){
 		$vcf_flag = $vcf_flag . "Long_edits;" if $length_flag == 1;
 		$vcf_flag = $vcf_flag . "Cluster_events;" if $cluster_flag == 1;
 		$vcf_flag = $vcf_flag . "Germline_risk;" if $normal_flag == 1;
-		$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $tandem_flag == 1;
+		$vcf_flag = $vcf_flag . "Tandem_Repeats;" if $tandem_flag == 1 or $Mono_flag == 1;
 		$vcf_flag = $vcf_flag . "multiallelic;" if $multiallelic_flag == 1;
 		$vcf_flag = $vcf_flag . "Softclipping;" if $pos_flag == 1;			
 		$vcf_flag = $vcf_flag . "Low_tumor_reads;" if $tumor_flag == 1;
 		$vcf_flag = $vcf_flag . "Low_TLOD;" if $TLOD_flag == 1;
-		$vcf_flag = $vcf_flag . "Low_mapping_quality;" if $MMQ_flag == 1;					
-				
+		$vcf_flag = $vcf_flag . "Low_mapping_quality;" if $MMQ_flag == 1;
+		$vcf_flag = $vcf_flag . "High_AF_in_variants;" if $high_flag == 1;
+		
 		$vcf_flag = "PASS" if length($vcf_flag) == 0;
 		$pass_vcf{$chr}{$pos} = $finalVCF{$chr}{$pos} if $vcf_flag eq "PASS";
 	}
