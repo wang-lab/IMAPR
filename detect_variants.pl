@@ -15,20 +15,29 @@ $input =~ s/\s+$//;
 unless ((
 		#input_files
 		$input =~ /-ID\t/
+		&& $input =~ /-mode\t/
 		&& $input =~ /-T\t/
-		&& $input =~ /-N\t/
-		&& $input =~ /-R\t/
+		&& $input =~ /-N\t/		
 		&& $input =~ /-O\t/
+		
+		#system
+		&& $input =~ /-thread\t/
+		&& $input =~ /-ram\t/
 		
 		#tools
 		&& $input =~ /-gatk\t/
 		&& $input =~ /-picard\t/
 		&& $input =~ /-hisat2\t/
+		&& $input =~ /-samtools\t/
 		
 		#reference
+		&& $input =~ /-R\t/
 		&& $input =~ /-gtf\t/
+		&& $input =~ /-gene\t/
 		&& $input =~ /-dbsnp\t/
 		&& $input =~ /-hisat2_reference\t/
+		&& $input =~ /-germline\t/
+		&& $input =~ /-pon\t/
 		)		
 		|| $input eq '-h'){
 	print "Found missing paramters, Please use -h for help information\n";
@@ -36,15 +45,36 @@ unless ((
 }
 
 if ($input eq '-h'){
-	print "This is the script for discovering variants based on RNA-seq data. The input file should be an RNA-seq bam file generated using the STAR pipeline.\n";
-	print "Usage: perl [options]... -mode single -d ./data_files -o ./out_files -g ./GRCH38 -f pair-end\n";
-	print "The result will be stored in output directory, name with Final_*";
+	print "This is the script for discovering variants based on RNA-seq data. \n";
+	print "Usage: perl detect_varaints.pl [options]... -ID [sample ID] -O [output directory] -R [fasta reference]...\n";
 	print "###version: 1.0.0\n";
-	print "#########################################################################################################################################\n";
-	print "Required:\n";	
-	print "-I\n\t./data_files: The directory for input file\n\n";
-	print "-O\n\t./out_files: The directory for output file\n\n";
-	print "-R\n\t./genome.fasta: Reference sequence file\n\n";
+	print "############################################################Parameters############################################################\n";
+	print "Required:\n";
+	print "##########Input files##########\n";
+	print "-ID\n\tsample_name: sample name\n\n";
+	print "-mode\n\tinput_format: input files format, RNA/RNA OR RNA/WXS\n\n";
+	print "-T\n\ttumor_input: path to aligned bam file for tumor sample\n\n";
+	print "-N\n\tnormal_input: path to aligned bam file for normal sample\n\n";
+	print "-O\n\tout_prefix: path to output folder\n\n";
+	
+	print "##########System setting##########\n";
+	print "-thread\n\tthreads: number of threads\n\n";
+	print "-ram\n\tram: available ram to run IMAPR in gigabytes(GB), 30GB is required to run IMAPR\n\n";
+	
+	print "##########Tools##########\n";
+	print "-gatk\n\tgatk: path to gatk tool package\n\n";
+	print "-picard\n\tpicard: path to picard jar file\n\n";
+	print "-hisat2\n\thisat2: path to hisat2 package\n\n";
+	print "-samtools\n\tsamtools: path to samtools package\n\n";
+	
+	print "##########Reference##########\n";
+	print "-R\n\tfasta_ref: path to genome fasta reference\n\n";
+	print "-gtf\n\tgtf_ref: path to gtf reference\n\n";
+	print "-gene\n\tgenelist_ref: path to gene list reference\n\n";
+	print "-dbsnp\n\tdbsnp_ref: path to dbsnp reference\n\n";
+	print "-hisat2_reference\n\thisat_ref: path to hisat2 reference\n\n";
+	print "-germline\n\tgermline_ref: path to germline reference\n\n";
+	print "-pon\n\tPON_ref: path to PON reference\n\n";
 	
 	exit;
 }
@@ -81,6 +111,15 @@ if ($input =~ /-O\t(\S+)/){
 	$outDir = $1;
 }
 
+###############################################################################
+my $ram = '.';
+if ($input =~ /-ram\t(\S+)/){
+	$ram = $1;
+}
+my $thread = '.';
+if ($input =~ /-thread\t(\S+)/){
+	$thread = $1;
+}
 ###############################################################################
 my $gtfFile = '.';
 if ($input =~ /-gtf\t(\S+)/){
@@ -130,37 +169,60 @@ if ($input =~ /-hisat2\t(\S+)/){
 	$hisat2 = $1;
 }
 
+my $samtools = '.';
+if ($input =~ /-samtools\t(\S+)/){
+	$samtools = $1;
+}
+#################################################################################################################
+print "##################################################################################################################################################\n";
+print "##########################################################                              ##########################################################\n";
+print "##########################################################  Running detect_variants.pl  ##########################################################\n";
+print "##########################################################                              ##########################################################\n";
+print "##################################################################################################################################################\n";
+#############################################Check RAM requirement###############################################
+if ($ram < 30){
+	print "Error: Doesn't meet basic requirement for the memory, please try to run IMAPR with additional RAM. \n";
+	exit;
+}
+
 ###########################################Generate output directory#############################################
 unless(-d $outDir){
 	system("mkdir $outDir");
 }
 
 ##############################################Preprocess bam file################################################
-my $ram = 50;
-my $thread = 12;
-my %gtf;
-
+my %gtf = readGTF($gtfFile);
 if($modeInput eq 'RNA/DNA'){
 	
 	#preprocess for tumor input
-	my $inputResource = "Tumor";
+	my $inputResource = "Tumor";	
+	my $tumor_ID_string = `$samtools view -H $tumorInput | grep SM: | head -1`;
+	unless ($tumor_ID_string =~ /ID\:/){
+		print "Error: Can't find sample ID in your input $tumorInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
+		exit;
+	}
+	
 	RNAPreProcessParallel($outDir, $tumorInput, $inputResource);
 	my $tumorInputMutect = "$outDir/reAligned_$inputResource.bam";
 	my $normalInputMutect = "$normalInput";
-	
-	my %gtf = readGTF($gtfFile);
 	
 	#1st variant detection	
 	my $variationIDInput = $idInput . "_first";
 	variantsCalling($tumorInputMutect,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
 	
-	#extract Reads from tumor bam and realign with Hisat2	
-	my $tumor_ID_string = `samtools view -H $tumorInputMutect | grep SM: | head -1`;
-	my $tumorSM = $1 if $tumor_ID_string =~ /SM\:(\S+)\s/;
+	#extract Reads from tumor bam and realign with Hisat2
+	
+	$tumor_ID_string = `$samtools view -H $tumorInputMutect | grep SM: | head -1`;
+	my $tumorSM = "NA";
 	my $tumorID = $1 if $tumor_ID_string =~ /ID\:(\S+)\s/;
-	my $tumorPL = $1 if $tumor_ID_string =~ /PL\:(\S+)\s/;
-	my $tumorLB = $1 if $tumor_ID_string =~ /LB\:(\S+)\s/;
-	my $tumorPU = $1 if $tumor_ID_string =~ /PU\:(\S+)\s/;	
+	my $tumorPL = "NA";
+	my $tumorLB = "NA";
+	my $tumorPU = "NA";
+	$tumorSM = $1 if $tumor_ID_string =~ /SM\:(\S+)\s/;
+	$tumorPL = $1 if $tumor_ID_string =~ /PL\:(\S+)\s/;
+	$tumorLB = $1 if $tumor_ID_string =~ /LB\:(\S+)\s/;
+	$tumorPU = $1 if $tumor_ID_string =~ /PU\:(\S+)\s/;
+	
 	extractReadFromBam($outDir, "$outDir/$variationIDInput\_Variants.bed", $tumorInput, $tumorSM, $tumorID, $tumorPL, $tumorLB, $tumorPU);
 	
 	#2nd variant detection	
@@ -171,27 +233,41 @@ if($modeInput eq 'RNA/DNA'){
 elsif($modeInput eq 'RNA/RNA'){
 	
 	#preprocess for tumor input
-	my $inputResource = "Tumor";
+	my $inputResource = "Tumor";	
+	my $tumor_ID_string = `$samtools view -H $tumorInput | grep SM: | head -1`;
+	unless ($tumor_ID_string =~ /ID\:/){
+		print "Error: Can't find sample ID in your input $tumorInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
+		exit;
+	}
+	
 	RNAPreProcessParallel($outDir, $tumorInput, $inputResource);
 	my $tumorInputMutect = "$outDir/reAligned_$inputResource.bam";
 	
 	#preprocess for normal input
 	$inputResource = "Normal";
-	RNAPreProcessParallel($outDir, $tumorInput, $inputResource);
+	my $normal_ID_string = `$samtools view -H $normalInput | grep SM: | head -1`;
+	unless ($normal_ID_string =~ /ID\:/){
+		print "Error: Can't find sample ID in your input $normalInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
+		exit;
+	}
+	RNAPreProcessParallel($outDir, $normalInput, $inputResource);
 	my $normalInputMutect = "$outDir/reAligned_$inputResource.bam";
-	
-	my %gtf = readGTF($gtfFile);	
+		
 	#1st variant detection
 	my $variationIDInput = $idInput . "_first";
 	variantsCalling($tumorInputMutect,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
 	
 	#extract Reads from tumor bam and realign with Hisat2	
-	my $tumor_ID_string = `samtools view -H $tumorInputMutect | grep SM: | head -1`;
-	my $tumorSM = $1 if $tumor_ID_string =~ /SM\:(\S+)\s/;
+	$tumor_ID_string = `$samtools view -H $tumorInputMutect | grep SM: | head -1`;
+	my $tumorSM = "NA";
 	my $tumorID = $1 if $tumor_ID_string =~ /ID\:(\S+)\s/;
-	my $tumorPL = $1 if $tumor_ID_string =~ /PL\:(\S+)\s/;
-	my $tumorLB = $1 if $tumor_ID_string =~ /LB\:(\S+)\s/;
-	my $tumorPU = $1 if $tumor_ID_string =~ /PU\:(\S+)\s/;	
+	my $tumorPL = "NA";
+	my $tumorLB = "NA";
+	my $tumorPU = "NA";
+	$tumorSM = $1 if $tumor_ID_string =~ /SM\:(\S+)\s/;
+	$tumorPL = $1 if $tumor_ID_string =~ /PL\:(\S+)\s/;
+	$tumorLB = $1 if $tumor_ID_string =~ /LB\:(\S+)\s/;
+	$tumorPU = $1 if $tumor_ID_string =~ /PU\:(\S+)\s/;
 	extractReadFromBam($outDir, "$outDir/$variationIDInput\_Variants.bed", $tumorInput, $tumorSM, $tumorID, $tumorPL, $tumorLB, $tumorPU);
 	
 	#2nd variant detection	
@@ -207,7 +283,12 @@ else{
 ###################################################Subroutines###################################################
 sub readGTF{
 	my ($filename) = @_;
-	my %gtf;	
+	my %gtf;
+	print "##################################################################################################################################################\n";	
+	my $start_time_epoch = time; #epoch time 	
+	my $start_time_str = getTime();
+	print "$start_time_str START Loading Reference File for $filename\n";
+	
 	if(-e $filename){
 		open(GTF, "$filename") or die "Cannot open $filename for reading: $!\n";
 		while (<GTF>) {
@@ -228,6 +309,14 @@ sub readGTF{
 		print "Error: Can't find the GTF annotation file in $filename\n";
 		exit;
 	}
+	
+	my $end_time_str = getTime();
+	my $end_time_epoch = time;
+	my $pre_epoch = timeTranslate($start_time_epoch, $end_time_epoch);
+	
+	print "$end_time_str END Loading Reference File for $filename\n";
+	print "$end_time_str Time Period: ", $pre_epoch, "\n";
+	print "##################################################################################################################################################\n";	
 	return  %gtf;
 }
 
@@ -245,6 +334,11 @@ sub RNAPreProcessParallel{
 	print "$start_time_str START Pre-process for $bamFile\n";
 	system("mkdir $outDir/tmp") unless -d "$outDir/tmp";
 	system("java -jar $picard SplitSamByNumberOfReads -I $bamFile -O $outDir/tmp -N_READS 10000000 -VALIDATION_STRINGENCY LENIENT 2>> $outDir/GATK.log.out");
+	
+	my $inter_time_epoch = time;
+	my $inter_time_str = getTime();
+	print "$inter_time_str FINISH Splitting bam file for $bamFile\n";
+	
 	my $upLimit = floor($ram/20);	
 	my $fileCount = `ls $outDir/tmp/shard_*.bam | wc -l`;
 	$fileCount =~ s/\s+$//;	
@@ -262,6 +356,10 @@ sub RNAPreProcessParallel{
 		
 	}
 	
+	$inter_time_epoch = time;
+	$inter_time_str = getTime();
+	print "$inter_time_str FINISH Removing Duplicates Reads for $bamFile\n";
+	
 	$upLimit = floor($ram/10);	
 	$iteration = ceil($fileCount/$upLimit);
 	foreach my $i(1..$iteration){
@@ -276,13 +374,22 @@ sub RNAPreProcessParallel{
 		system($splitCommand);
 		
 	}
+	
+	$inter_time_epoch = time;
+	$inter_time_str = getTime();
+	print "$inter_time_str FINISH Splitting Reads based on Introns for $bamFile\n";
+	
 	my $BRCommand = "$gatk BaseRecalibrator -R $fastaReference ";
 	foreach my $i(1..$fileCount){
 		$i = sprintf("%04d", $i);
 		$BRCommand = $BRCommand . "-I $outDir/tmp/split_md_shard_$i.bam ";		
 	}
-	$BRCommand = $BRCommand . "-known-sites $dbsnpFile -O $outDir/tmp/Aligned.out.table 2>> $outDir/GATK.log.out";	
+	$BRCommand = $BRCommand . "-known-sites $dbsnpFile -O $outDir/tmp/Aligned.out.table 1>> $outDir/GATK.log.out 2>> $outDir/GATK.log.out";	
 	system($BRCommand);	
+	
+	$inter_time_epoch = time;
+	$inter_time_str = getTime();
+	print "$inter_time_str FINISH Reads Recalibration for $bamFile\n";
 	
 	foreach my $i(1..$iteration){
 		my $BQSRCommand = "";
@@ -293,19 +400,27 @@ sub RNAPreProcessParallel{
 			$BQSRCommand = $BQSRCommand . "$gatk ApplyBQSR -R $fastaReference -I $outDir/tmp/split_md_shard_$temp.bam -bqsr-recal-file $outDir/tmp/Aligned.out.table -O $outDir/tmp/re_split_md_shard_$temp.bam 2>> $outDir/GATK.log.out &\n";
 		}
 		$BQSRCommand = $BQSRCommand . "wait\n";		
-		system($BQSRCommand);
-		
+		system($BQSRCommand);		
 	}
+	
+	$inter_time_epoch = time;
+	$inter_time_str = getTime();
+	print "$inter_time_str FINISH BQSR for $bamFile\n";
 	
 	my $mergeCommand = "java -jar $picard MergeSamFiles ";
 	foreach my $i(1..$fileCount){
 		$i = sprintf("%04d", $i);
 		$mergeCommand = $mergeCommand . "-I $outDir/tmp/re_split_md_shard_$i.bam ";		
 	}
-	$mergeCommand = $mergeCommand . "-O $outDir/reAligned_$format.bam 2>> $outDir/GATK.log.out";	
-	system($mergeCommand);
+	$mergeCommand = $mergeCommand . "-O $outDir/reAligned_$format.bam 2>> $outDir/GATK.log.out";
+
+	system($mergeCommand);	
+	$inter_time_epoch = time;
+	$inter_time_str = getTime();
+	print "$inter_time_str FINISH Merging Pre-processed bam file for $bamFile\n";
+	
 	system("rm -r $outDir/tmp");
-	system("samtools index $outDir/reAligned_$format.bam");
+	system("$samtools index $outDir/reAligned_$format.bam");
 	
 	my $end_time_str = getTime();
 	my $end_time_epoch = time;
@@ -340,10 +455,19 @@ sub variantsCalling{
 	my @bedList = `ls $outDir/bedSplit*`;
 	
 
-	my $tumor_ID_string = `samtools view -H $tumorInput | grep SM: | head -1`;
-	my $tumor_ID = $1 if $tumor_ID_string =~ /SM\:(\S+)\s/;	
+	my $tumor_ID_string = `$samtools view -H $tumorInput | grep SM: | head -1`;
+	unless ($tumor_ID_string =~ /ID\:/){
+		print "Error: Can't find sample ID in your input $tumorInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
+		exit;
+	}
+	my $tumor_ID = $1 if $tumor_ID_string =~ /SM\:(\S+)\s/;
 	
-	my $normal_ID_string = `samtools view -H $normalInput | grep SM: | head -1`;
+	
+	my $normal_ID_string = `$samtools view -H $normalInput | grep SM: | head -1`;
+	unless ($normal_ID_string =~ /ID\:/){
+		print "Error: Can't find sample ID in your input $normalInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
+		exit;
+	}
 	my $normal_ID = $1 if $normal_ID_string =~ /SM\:(\S+)\s/;
 		
 	my $command = '';	
@@ -361,7 +485,7 @@ sub variantsCalling{
 		system("rm $outDir/$ID\_$bed.vcf.idx") if -e "$outDir/$ID\_$bed.vcf.idx";
 		system("rm $outDir/$ID\_$bed.vcf.stats") if -e "$outDir/$ID\_$bed.vcf.stats";
 		
-		$command = $command . "$gatk Mutect2 -R $fastaReference -I $tumorInput -I $normalInput -tumor $tumor_ID -normal $normal_ID -O $outDir/$ID\_$bed.vcf -L $bedList.list --panel-of-normals $ponResource --germline-resource $germlineResource --read-validation-stringency LENIENT --disable-read-filter AllowAllReadsReadFilter 2>> $outDir/$ID\_$bed.log.out &\n";
+		$command = $command . "$gatk Mutect2 -R $fastaReference -I $tumorInput -I $normalInput -tumor $tumor_ID -normal $normal_ID -O $outDir/$ID\_$bed.vcf -L $bedList.list --panel-of-normals $ponResource --germline-resource $germlineResource --read-validation-stringency LENIENT --disable-read-filter AllowAllReadsReadFilter 1>> $outDir/$ID\_$bed.log.out 2>> $outDir/$ID\_$bed.log.out &\n";
 	}
 	$command = $command . "wait\n";	
 	system($command);
@@ -486,7 +610,7 @@ sub extractReadFromBam{
 	system("mkdir $tmp_dir") unless -d "$tmp_dir";		
 	
 	open(my $IDs_all, ">", "$tmp_dir/IDs_all.txt") or die "Cannot open IDs_all.txt: $!";
-	open(my $samtools_view, "-|", "samtools view -L $variantsFile -@ $thread $bamInput") or die "Cannot run samtools view: $!";
+	open(my $samtools_view, "-|", "$samtools view -L $variantsFile -@ $thread $bamInput") or die "Cannot run $samtools view: $!";
 	while (my $line = <$samtools_view>) {
 		my @fields = split("\t", $line);
 		print $IDs_all "$fields[0]\n";
@@ -497,13 +621,13 @@ sub extractReadFromBam{
 	system("java -Xmx7g -jar $picard FilterSamReads -I $bamInput -O $tmp_dir/tmp_bam.bam -READ_LIST_FILE $tmp_dir/IDs_all.txt -FILTER includeReadList -WRITE_READS_FILES false -VALIDATION_STRINGENCY LENIENT 2>> $hisat2_log");
 
 	open(my $tmp_filteredbamT, ">", "$tmp_dir/tmp_filteredbamT.sam") or die "Cannot open tmp_filteredbamT.sam: $!";
-	open(my $samtools_view_header, "-|", "samtools view -H $tmp_dir/tmp_bam.bam") or die "Cannot run samtools view: $!";
+	open(my $samtools_view_header, "-|", "$samtools view -H $tmp_dir/tmp_bam.bam") or die "Cannot run $samtools view: $!";
 	while (my $line = <$samtools_view_header>) {
 		print $tmp_filteredbamT $line unless $line =~ /^\@PG/;
 	}
 	close($samtools_view_header);
 
-	open(my $samtools_view_body, "-|", "samtools view $tmp_dir/tmp_bam.bam") or die "Cannot run samtools view: $!";
+	open(my $samtools_view_body, "-|", "$samtools view $tmp_dir/tmp_bam.bam") or die "Cannot run $samtools view: $!";
 	while (my $line = <$samtools_view_body>) {
 		my @fields = split("\t", $line);
 		print $tmp_filteredbamT $line if $fields[1] < 2040;
@@ -532,13 +656,13 @@ sub extractReadFromBam{
 	}
 	close(STATS);
 	
-	system("samtools sort -T $tmp_dir $tmp_dir/hisat2_realign.sam > $tmp_dir/hisat2_realign.bam");
-	system("samtools index $tmp_dir/hisat2_realign.bam");
+	system("$samtools sort -T $tmp_dir $tmp_dir/hisat2_realign.sam > $tmp_dir/hisat2_realign.bam 2>/dev/null");
+	system("$samtools index $tmp_dir/hisat2_realign.bam");
 	
 	system("java -jar $picard MarkDuplicates -I $tmp_dir/hisat2_realign.bam -O $tmp_dir/md_hisat2_realign.bam -M $tmp_dir/md_hisat2_realign.bam_md_metrics.txt -VALIDATION_STRINGENCY STRICT 2>> $hisat2_log");
 	system("$gatk SplitNCigarReads -R $fastaReference -I $tmp_dir/md_hisat2_realign.bam -O $tmp_dir/split_md_hisat2_realign.bam 2>> $hisat2_log");	
 	system("java -jar $picard AddOrReplaceReadGroups -I $tmp_dir/split_md_hisat2_realign.bam -O $tmp_dir/add_split_md_hisat2_realign.bam -RGID $tumorID -RGLB $tumorLB -RGPL $tumorPL -RGPU $tumorPU -RGSM $tumorSM -VALIDATION_STRINGENCY STRICT 2>> $hisat2_log");
-	system("$gatk BaseRecalibrator -R $fastaReference -I $tmp_dir/add_split_md_hisat2_realign.bam -known-sites $dbsnpFile -O $tmp_dir/hisat2_realign.table 2>> $hisat2_log");
+	system("$gatk BaseRecalibrator -R $fastaReference -I $tmp_dir/add_split_md_hisat2_realign.bam -known-sites $dbsnpFile -O $tmp_dir/hisat2_realign.table 1>> $hisat2_log 2>> $hisat2_log");
 	system("$gatk ApplyBQSR -R $fastaReference -I $tmp_dir/add_split_md_hisat2_realign.bam -bqsr-recal-file $tmp_dir/hisat2_realign.table -O $dir/reAligned_hisat2_Tumor.bam 2>> $hisat2_log");
 	
 	system("rm -r $tmp_dir") if -d $tmp_dir;

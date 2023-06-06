@@ -4,6 +4,10 @@ tumor_input	/data3/gtang/git/data/tumor.bam
 normal_input	/data3/gtang/git/data/normal.bam
 out_prefix	/data3/gtang/git/data/out_put
 
+#system
+thread	10
+ram	30
+
 #tools_reference
 gatk	gatk
 picard	~/picard.jar
@@ -14,7 +18,6 @@ hisat2	hisat2
 fasta_ref	/data1/gtang/genome/gdc/GRCh38.d1.vd1.fa
 gtf_ref	/data1/gtang/genome/gdc/gencode.v36.annotation.gtf
 genelist_ref	/data1/gtang/genome/gdc/gg.list
-RNA_edits_ref	/data1/gtang/genome/gdc/RNA_edits.bed
 dbsnp_ref	/data1/gtang/genome/gdc/common_all_20180418_update.vcf.gz
 germline_ref	/data1/gtang/genome/somatic-hg38_af-only-gnomad.hg38.vcf.gz
 PON_ref	/data1/gtang/genome/somatic-hg38_1000g_pon.hg38.vcf.gz

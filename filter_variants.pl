@@ -10,10 +10,6 @@ use Statistics::Distributions qw(chisqrprob);
 #########################This is the script for filtering variants based on RNA-seq data#########################
 ########################The input file should be an output directory generated from p1.pl########################
 
-my $start_time_epoch = time; #epoch time 
-my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
-my $start_time_str = sprintf("%02d-%02d-%02d_%02d-%02d-%02d", $year-100,$mon+1, $mday, $hour, $min, $sec);
-
 my $input = join "\t", @ARGV;
 $input =~ s/\s+$//;
 unless ((
@@ -25,6 +21,10 @@ unless ((
 		&& $input =~ /-igg\t/
 		&& $input =~ /-hla\t/
 		&& $input =~ /-pseudo\t/
+		&& $input =~ /-tcga\t/
+		&& $input =~ /-radar\t/
+		&& $input =~ /-darned\t/
+		&& $input =~ /-redi\t/
 		)		
 		|| $input eq '-h'){
 	print "Found missing paramters, Please use -h for help information\n";
@@ -33,12 +33,24 @@ unless ((
 
 if ($input eq '-h'){
 	print "This is the script for filtering variants based on RNA-seq data. The input file should be an output directory generated from p1.pl.\n";
-	print "Usage: perl [options]... -mode single -d ./data_files -o ./out_files -g ./GRCH38 -f pair-end\n";
-	print "The result will be stored in output directory, name with Final_*";
+	print "Usage: perl [options]... -ID [sample ID] -O [output directory] -R [fasta reference]\n";	
 	print "###version: 1.0.0\n";
 	print "#########################################################################################################################################\n";
-	print "Required:\n";	
-	print "-iputDir\n\t./data_files: The directory for input file\n\n";	
+	print "Required:\n";
+	print "##########Input files##########\n";
+	print "-ID\n\tsample_name: sample name\n\n";
+	print "-O\n\tout_prefix: path to output folder\n\n";
+	
+	print "##########Reference##########\n";
+	print "-R\n\tfasta_ref: path to genome fasta reference\n\n";
+	print "-igg\n\tigg_ref: path to igg reference\n\n";
+	print "-hla\n\thla_ref: path to hla reference\n\n";
+	print "-pseudo\n\tpseudo_ref: path to pseudo gene reference\n\n";
+	print "-tcga\n\ttcga_PON_ref: path to tcga PON reference\n\n";
+	print "-radar\n\tradar_ref: path to radar reference\n\n";
+	print "-darned\n\tdarned_ref: path to darned reference\n\n";
+	print "-redi\n\tredi_ref: path to redi reference\n\n";
+	
 	exit;
 }
 
@@ -94,9 +106,24 @@ if ($input =~ /-redi\t(\S+)/){
 	$rediReference = $1;
 }
 
-###############################################################################
+#################################################################################################################
+print "##################################################################################################################################################\n";
+print "##########################################################                              ##########################################################\n";
+print "##########################################################  Running filter_variants.pl  ##########################################################\n";
+print "##########################################################                              ##########################################################\n";
+print "##################################################################################################################################################\n";
 
-################################load references################################
+###########################################Generate output directory###########################################
+unless(-d $outDir){
+	system("mkdir $outDir");
+}
+
+###############################################load references#################################################
+my $start_time_epoch = time; #epoch time
+my $start_time_str = getTime();
+print "##################################################################################################################################################\n";
+print "$start_time_str START Loading Reference File for Variants Filtering\n";
+
 my %igg = readGTF($iggReference);
 my %hla = readGTF($hlaReference);
 my %pseudo = readGTF($pseudoReference);
@@ -105,7 +132,7 @@ my %Radar = readEDITs($radarReference);
 my %Darned = readEDITs($darnedReference);
 my %REDI = readEDITs($rediReference);
 
-##############################TCGA PON references##############################
+#############################################TCGA PON references###############################################
 my %pon;
 my %ponDetail;
 if(-e $tcgaReference){
@@ -133,6 +160,13 @@ else{
 	exit;
 }
 	
+my $end_time_epoch = time;
+my $end_time_str = getTime();
+my $first_epoch = timeTranslate($start_time_epoch, $end_time_epoch);
+print "$end_time_str END Loading Reference File for Variants Filtering\n";
+print "$end_time_str Time Period: ", $first_epoch, "\n";
+print "##################################################################################################################################################\n";
+
 ################################Filter variants################################
 my $finalVCF = "$outDir/$idInput\_final_Variants.vcf";
 my $firstVCF = "$outDir/$idInput\_first_Variants.vcf";
@@ -163,13 +197,24 @@ close(IN);
 my $bed_file = "$outDir/$idInput\_final_Variants.bed";
 my $update_bed_file = "$outDir/$idInput\_update_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,1,0,'mpileup');
-		
+
+$start_time_epoch = time; #epoch time
+$start_time_str = getTime();
+print "##################################################################################################################################################\n";
+print "$start_time_str START Samtools Variant Calling\n";
+	
 my $bam = "$outDir/reAligned_hisat2_Tumor.bam";
-my $mpileupout = "$outDir/$idInput\_mpileup2.output";		
+my $mpileupout = "$outDir/$idInput\_mpileup.output";		
 system ("samtools mpileup -d 1000000 -l $update_bed_file -f $fastaReference $bam -o $mpileupout 2>/dev/null") unless -e $mpileupout;
 
 my $bcftools_outfiles = "$outDir/$idInput\_bcftools.output";				
 system("bcftools mpileup -d 1000000 -f $fastaReference -R $update_bed_file $bam -Ov -o $bcftools_outfiles 2>/dev/null") unless -e $bcftools_outfiles;
+
+$end_time_epoch = time;
+$end_time_str = getTime();
+$first_epoch = timeTranslate($start_time_epoch, $end_time_epoch);
+print "$end_time_str END Samtools Variant Calling\n";
+print "$end_time_str Time Period: ", $first_epoch, "\n";
 
 $update_bed_file = "$outDir/$idInput\_update_fastq_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,8,8,'fasta');
@@ -225,6 +270,11 @@ while(<IN>){
 	$depth{$line[0]}{$line[1]} = $line[2];
 }
 close(IN);
+
+$start_time_epoch = time; #epoch time
+$start_time_str = getTime();
+print "##################################################################################################################################################\n";
+print "$start_time_str START Filtering Variants\n";
 
 my %pass_vcf;
 my @list = ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY");
@@ -581,7 +631,12 @@ foreach my $chr(@list){
 }
 close(VCF);
 
-
+$end_time_epoch = time;
+$end_time_str = getTime();
+$first_epoch = timeTranslate($start_time_epoch, $end_time_epoch);
+print "$end_time_str END Filtering Variants\n";
+print "$end_time_str Time Period: ", $first_epoch, "\n";
+print "##################################################################################################################################################\n";
 
 sub readGTF{
 	my ($filename) = @_;

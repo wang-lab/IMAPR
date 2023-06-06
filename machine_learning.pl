@@ -1,13 +1,13 @@
 use strict;
 use warnings;
-use lib '/home/gtang/data1';
+use List::Util qw/sum/;
+use List::Util qw/max/;
+use List::Util qw/min/;
+use Statistics::Test::WilcoxonRankSum;
+use Statistics::Distributions qw(chisqrprob);
 
 #########################This is the script for filtering variants based on RNA-seq data#########################
 ########################The input file should be an output directory generated from p1.pl########################
-
-my $start_time_epoch = time; #epoch time 
-my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
-my $start_time_str = sprintf("%02d-%02d-%02d_%02d-%02d-%02d", $year-100,$mon+1, $mday, $hour, $min, $sec);
 
 my $input = join "\t", @ARGV;
 $input =~ s/\s+$//;
@@ -15,7 +15,6 @@ unless ((
 		#input_files
 		$input =~ /-ID\t/
 		&& $input =~ /-O\t/		
-		
 		&& $input =~ /-gtf\t/
 		)		
 		|| $input eq '-h'){
@@ -24,13 +23,14 @@ unless ((
 }
 
 if ($input eq '-h'){
-	print "This is the script for filtering variants based on RNA-seq data. The input file should be an output directory generated from p1.pl.\n";
-	print "Usage: perl [options]... -mode single -d ./data_files -o ./out_files -g ./GRCH38 -f pair-end\n";
-	print "The result will be stored in output directory, name with Final_*";
+	print "This is the script for filtering variants using machine learning model .\n";
+	print "Usage: perl [options]... -ID [sample ID] -O [output directory] -gtf [gtf reference]\n";	
 	print "###version: 1.0.0\n";
 	print "#########################################################################################################################################\n";
 	print "Required:\n";	
-	print "-iputDir\n\t./data_files: The directory for input file\n\n";	
+	print "-ID\n\tsample_name: sample name\n\n";
+	print "-O\n\tout_prefix: path to output folder\n\n";
+	print "-gtf\n\tgtf_ref: path to gtf reference\n\n";
 	exit;
 }
 
@@ -51,7 +51,25 @@ if ($input =~ /-gtf\t(\S+)/){
 	$gtfFile = $1;
 }
 
-###############################################################################
+#################################################################################################################
+print "##################################################################################################################################################\n";
+print "#########################################################                              ###########################################################\n";
+print "#########################################################  Running machine_learning.pl ###########################################################\n";
+print "#########################################################                              ###########################################################\n";
+print "##################################################################################################################################################\n";
+
+###########################################Generate output directory######################################################
+unless(-d $outDir){
+	system("mkdir $outDir");
+}
+
+##########################################################################################################################
+
+my $start_time_epoch = time; #epoch time
+my $start_time_str = getTime();
+print "##################################################################################################################################################\n";
+print "$start_time_str START Loading Reference File for Machine Learning Model\n";
+
 my %gene;
 my %exon;
 my %cds;
@@ -103,22 +121,32 @@ if(-e $gtfFile){
 	}
 	close(GTF);
 	unless (keys %gene or keys %exon or keys %cds or keys %UTR) {
-		print "Error: Can't find the gene information in $filename, please check your gtf annotation file\n";
+		print "Error: Can't find the gene information in $gtfFile, please check your gtf annotation file\n";
 		exit;
 	} 
 }
 else{
-	print "Error: Can't find the GTF annotation file in $filename\n";
+	print "Error: Can't find the GTF annotation file in $gtfFile\n";
 	exit;
 }
 
+my $end_time_epoch = time;
+my $end_time_str = getTime();
+my $first_epoch = timeTranslate($start_time_epoch, $end_time_epoch);
+print "$end_time_str END Loading Reference File for Machine Learning Model\n";
+print "$end_time_str Time Period: ", $first_epoch, "\n";
+print "##################################################################################################################################################\n";
 ############################
+$start_time_epoch = time; #epoch time
+$start_time_str = getTime();
+print "##################################################################################################################################################\n";
+print "$start_time_str START Running Machine Learning Model\n";
 
-my $out_file = "./$outDir/$idInput\_mc_inputs.txt";
+my $out_file = "$outDir/$idInput\_mc_inputs.txt";
 open(VAL, ">$out_file") or die "Cannot open $out_file for reading: $!\n";
 
 print VAL "\ttumorDepth\talterTumorReads\talterAF\tmapQuality\tmapPosition\tartifactsNormal\tgenoNormal\tpopulationAF\ttumorLog\twilcoxon\tSQ_alt\tSQ_ref\tSQ_fc\t";
-print VAL "mpileup_alt\summaryileup_per\tchi_pvalue\tcoverge_1\tcoverge_2\tcoverge_3\tcoverge_4\tcoverge_5\t";
+print VAL "mpileup_alt\tmpileup_per\tchi_pvalue\tcoverge_1\tcoverge_2\tcoverge_3\tcoverge_4\tcoverge_5\t";
 print VAL "VDB\tSGB\tRPB\tMQB\tMQSB\tBQB\tMQ0F\t";
 print VAL "C>T\tC>G\tC>A\tT>G\tT>C\tT>A\t";
 print VAL "cds\tUTR\tnc_exon\tintron\tintergenic";
@@ -139,7 +167,7 @@ close(IN);
 
 my $mpileupout = "$outDir/$idInput\_mpileup.output";
 my $bcftools_outfiles = "$outDir/$idInput\_bcftools.output";
-my $variant_fasta = "$outDir/$idInput\_/variant_fasta.output";
+my $variant_fasta = "$outDir/$idInput\_variant_fasta.output";
 my $depthOut = "$outDir/$idInput\_depthOut.output";
 
 my %mpileup;
@@ -335,7 +363,7 @@ foreach my $chr(sort {lc $a cmp lc $b} keys %vcf){
 		
 	}
 }
-compare(\%vcf,\%summary);	
+generateMCInput(\%vcf,\%summary);	
 close VAL;
 
 #machine learning filter
@@ -364,7 +392,14 @@ while(<IN>){
 close(IN);
 close(OUT);
 
-sub compare{
+$end_time_epoch = time;
+$end_time_str = getTime();
+$first_epoch = timeTranslate($start_time_epoch, $end_time_epoch);
+print "$end_time_str END Running Machine Learning Model\n";
+print "$end_time_str Time Period: ", $first_epoch, "\n";
+print "##################################################################################################################################################\n";
+
+sub generateMCInput{
 	my ($rna,$summary) = @_;
 	my %rna = %$rna;	
 	my %summary = %$summary;
@@ -565,3 +600,16 @@ sub median {
     }
 }
 
+sub getTime{
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+	my $time_str = sprintf("%02d-%02d-%02d %02d:%02d:%02d", $year-100,$mon+1, $mday, $hour, $min, $sec);
+	return $time_str;
+}
+
+sub timeTranslate{
+	my ($start,$end) = @_;
+	my $epoch = $end - $start;
+	use integer;
+	$epoch =  sprintf("%02d:%02d:%02d", $epoch/3600, $epoch/60%60, $epoch%60);
+	return $epoch;
+}

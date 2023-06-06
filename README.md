@@ -92,8 +92,7 @@ This file has the following format. The order of rows doesn't matter.
   #reference
   fasta_ref	<path-to-fasta-reference>
   gtf_ref	<path-to-gtf-reference>
-  genelist_ref	<path-to-gene-list-reference>
-  RNA_edits_ref	<path-to-rna-edits-reference>
+  genelist_ref	<path-to-gene-list-reference>  
   dbsnp_ref	<path-to-dbsnp-reference>
   germline_ref	<path-to-germline-reference>
   PON_ref	<path-to-PON-reference>
@@ -116,11 +115,6 @@ This file has the following format. The order of rows doesn't matter.
 ***picard*** is path to picard jar file.  
 ***samtools*** is path to samtools package.  
 ***hisat2*** is path to hisat2 package.  
- 
-***fasta_ref*** is path to genome fasta reference.  
-***RNA_edits_ref*** is path to RNA-edits reference.  
-***germline_ref*** is path to germline resource reference.  
-***PON_ref*** is path to panel of normal reference.  
 
 ***fasta_ref*** is path to genome fasta reference.  
 ***gtf_ref*** is path to gtf reference.  
