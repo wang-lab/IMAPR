@@ -136,7 +136,7 @@ my %REDI = readEDITs($rediReference);
 my %pon;
 my %ponDetail;
 if(-e $tcgaReference){
-	open(IN, "$tcgaReference") or die "Cannot open $tcgaReference for reading: $!\n";
+	open(IN, "gzip -dc $tcgaReference |") or die "Cannot open $tcgaReference for reading: $!\n";
 	while (<IN>) {
 		next if $_ =~ /^\#/;
 		$_=~ s/\s+$//;

@@ -8,7 +8,7 @@ The pipeline accepts aligned RNA-seq data as inputs and identifies somatic mutat
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
-### Prerequisites
+### Prerequisite Packages
 
 * This package is supported for *Linux* operating systems.  The package has been tested on the following systems:
 ```
@@ -17,6 +17,11 @@ These instructions will get you a copy of the project up and running on your loc
 * Perl 5 interpreter or higher on a Ubuntu compatible Linux system is required.
    * [Installation instruction](https://learn.perl.org/installing/)
    * [Perl download](https://www.perl.org/get.html)
+
+* Following perl modules are required.
+   * List::Util
+   * Statistics::Test::WilcoxonRankSum
+   * Statistics::Distributions
    
 * Python 3.8.10 or higher on a Ubuntu compatible Linux system is required.   
    * [Python3 download](https://www.python.org/downloads/)
@@ -38,10 +43,12 @@ These instructions will get you a copy of the project up and running on your loc
 * The samtools version 1.10 or higher is required.
    * [samtools download](https://github.com/samtools/samtools)
    
+* The Hisat2 version 2.1.0 or higher is required.
+   * [Hisat2 download](http://daehwankimlab.github.io/hisat2/download/#version-hisat2-210)
    
-### Prerequisites
+### Prerequisites reference
 
-Follwing reference files are required to run IMAPR pipeline:
+Follwing reference files are required to run IMAPR pipeline, please download these files and place them under IMAPR/reference/ for your convenience to use:
 
 * A fasta reference sequence file:
 	* The fasta reference sequence, GRCh38.d1.vd1.fa.tar.gz, from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
@@ -50,28 +57,50 @@ Follwing reference files are required to run IMAPR pipeline:
 	* The annotation files from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
 	
 * A panel of normal (PON) file:
-	* The annotation files from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
 	* The PON files recommeded by broad institute is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
 	
 * A Germline resource file:
-	* The annotation files from TCGA data portal is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
+	* The germline resource files recommeded by broad institute is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
 
-* Three RNA-edits resource files:
-	* Three RNA-edits resource files were provided in IMAPR/reference
-	* IMAPR/reference/Darned_38.bed
-	* IMAPR/reference/Radar_38.bed
-	* IMAPR/reference/DRNA-EDI.bed
+* A TCGA PON reference file:
+	* The TCGA reference files from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
+	* uuid: 726e24c0-d2f2-41a8-9435-f85f22e1c832
+	* This file is controlled and require dbGaP access to download. You will need gdc-client to download this file.
+	```
+		gdc-client download -u 726e24c0-d2f2-41a8-9435-f85f22e1c832 -t [your_token]
+	```
+	* Please download these files and place them under IMAPR/reference/
+* A dbSNP reference file:
+	* The dbSNP file from NIH is recommended(https://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/GATK/)
+	
+* Three RNA-edits resource files: 
+	* IMAPR/reference/Darned_38.bed (Provided in IMAPR/reference/)
+	* IMAPR/reference/Radar_38.bed (Provided in IMAPR/reference/)
+	* IMAPR/reference/RNA-EDI.bed (http://srv00.recas.ba.infn.it/webshare/ATLAS/donwload/TABLE1_hg38.txt.gz)
 	
 ### Installation of IMAPR standalone program
 
 * Install IMAPR using git command:
 ```
-   git clone https://github.com/wang-lab/IMAPR.git   
+	git clone https://github.com/wang-lab/IMAPR.git   
+```
+* Build and check reference for IMAPR
+```
+	bash build_reference.sh ./reference   
+```
+* Build indinces for genome fasta file
+```
+	[path-to-samtools-package] faidx ./reference/GRCh38.d1.vd1.fa
+	java -jar [path-to-picard-package] CreateSequenceDictionary -R ./reference/GRCh38.d1.vd1.fa -O ./reference/GRCh38.d1.vd1.dict
+```
+* Build indinces for Hisat2 alignment
+```
+	[path-to-hisat2-build-package] ./reference/GRCh38.d1.vd1.fa ./reference/
 ```
 * Prepare your input files and update your input.txt file.
-* Type 'sh IMAPR.sh' to run the program and view the help file.
+* Type 'bash IMAPR.sh' to run the program and view the help file.
 
-### I/O Descriptions  
+### I/O Descriptions
 #### Inputs  
 ***pipeline_inputs.txt***  
 This file has the following format. The order of rows doesn't matter.  
@@ -137,15 +166,15 @@ This file has the following format. The order of rows doesn't matter.
 * bash command submission, user need to change the indices listed in IMAPR.sh   
    
 ```
-   sh IMAPR.sh pipeline_inputs.txt
+	bash IMAPR.sh pipeline_inputs.txt
 ```
 
 * The script can also be run separately with follow steps
   
 ```
-   perl detect_variants.pl [options]... -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -gene $genelist_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref -germline $germline_ref -pon $PON_ref
-   perl filter_variants.pl [options]... -ID $sample_name -O $out_prefix -R $fasta_ref -igg $igg_ref -hla $hla_ref -pseudo $pseudo_ref -tcga $tcga_PON_ref -radar $radar_ref -darned $darned_ref -redi $REDI_ref
-   perl machine_learning.pl [options]... -ID $sample_name -O $out_prefix -gtf $gtf_ref
+	perl detect_variants.pl [options]... -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -gene $genelist_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref -germline $germline_ref -pon $PON_ref
+	perl filter_variants.pl [options]... -ID $sample_name -O $out_prefix -R $fasta_ref -igg $igg_ref -hla $hla_ref -pseudo $pseudo_ref -tcga $tcga_PON_ref -radar $radar_ref -darned $darned_ref -redi $REDI_ref
+	perl machine_learning.pl [options]... -ID $sample_name -O $out_prefix -gtf $gtf_ref
 ```
 
 ### Outputs
@@ -153,19 +182,19 @@ This file has the following format. The order of rows doesn't matter.
 If the file is read in correctly, the following output files will be generated in output folder.
 * 1st Mutect2 Variants files
 ```
-   [sample_ID]_first_variants.txt
+	[sample_ID]_first_variants.txt
 ```
 * Repeated Mutect2 Variants files
 ```
-   [sample_ID]_final_variants.txt
+	[sample_ID]_final_variants.txt
 ```
 * samtools mpileup Variants files
 ```
-   [sample_ID]_bcftools.output
+	[sample_ID]_bcftools.output
 ```
 * Machine-learning filtered Variants files
 ```
-   [sample_ID]_mc_filter_Variants.vcf
+	[sample_ID]_mc_filter_Variants.vcf
 ```
 ## License & copyright
 
