@@ -195,7 +195,24 @@ my %gtf = readGTF($gtfFile);
 if($modeInput eq 'RNA/DNA'){
 	
 	#preprocess for tumor input
-	my $inputResource = "Tumor";	
+	my $inputResource = "Tumor";
+	
+	#check bam file index
+	my $tumorBamIndex = $tumorInput;	
+	$tumorBamIndex =~ s/\.bam/\.bai/;
+	my $tumorBamIndex2 = $tumorInput . '.bai';	
+	unless(-e $tumorBamIndex || -e $tumorBamIndex2){		
+		system("$samtools index $tumorInput");
+	}
+	
+	my $normalBamIndex = $normalInput;	
+	$normalBamIndex =~ s/\.bam/\.bai/;
+	my $normalBamIndex2 = $normalInput . '.bai';
+	unless(-e $normalBamIndex || -e $normalBamIndex2){
+		system("$samtools index $normalInput");
+	}
+	
+	
 	my $tumor_ID_string = `$samtools view -H $tumorInput | grep SM: | head -1`;
 	unless ($tumor_ID_string =~ /ID\:/){
 		print "Error: Can't find sample ID in your input $tumorInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
@@ -229,11 +246,28 @@ if($modeInput eq 'RNA/DNA'){
 	$variationIDInput = $idInput . "_final";
 	my $tumorInputMutectReAlign = "$outDir/reAligned_hisat2_$inputResource.bam";
 	variantsCalling($tumorInputMutectReAlign,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
+	system("rm -r $outDir/*bedSplit*");
 }
 elsif($modeInput eq 'RNA/RNA'){
 	
 	#preprocess for tumor input
-	my $inputResource = "Tumor";	
+	my $inputResource = "Tumor";
+	
+	#check bam file index
+	my $tumorBamIndex = $tumorInput;	
+	$tumorBamIndex =~ s/\.bam/\.bai/;
+	my $tumorBamIndex2 = $tumorInput . '.bai';	
+	unless(-e $tumorBamIndex || -e $tumorBamIndex2){
+		system("$samtools index $tumorInput");
+	}
+	
+	my $normalBamIndex = $normalInput;	
+	$normalBamIndex =~ s/\.bam/\.bai/;
+	my $normalBamIndex2 = $normalInput . '.bai';	
+	unless(-e $normalBamIndex || -e $normalBamIndex2){
+		system("$samtools index $normalInput");
+	}
+	
 	my $tumor_ID_string = `$samtools view -H $tumorInput | grep SM: | head -1`;
 	unless ($tumor_ID_string =~ /ID\:/){
 		print "Error: Can't find sample ID in your input $tumorInput, please use gatk AddOrReplaceReadGroups to add sample ID. \n";
@@ -274,6 +308,7 @@ elsif($modeInput eq 'RNA/RNA'){
 	$variationIDInput = $idInput . "_final";
 	my $tumorInputMutectReAlign = "$outDir/reAligned_hisat2_$inputResource.bam";
 	variantsCalling($tumorInputMutectReAlign,$normalInputMutect,$variationIDInput,$outDir,$fastaReference);
+	system("rm -r $outDir/*bedSplit*");
 }
 else{
 	print "Error: Can't recognize input_format. The input format should be RNA/RNA or RNA/DNA.\n";

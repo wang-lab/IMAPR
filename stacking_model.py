@@ -1,36 +1,13 @@
 import numpy as np
+from numpy import random, array, zeros, empty
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import sklearn.metrics as metrics
 import sys
-
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.model_selection import RandomizedSearchCV
-import pandas_profiling
-from sklearn import metrics
-from sklearn.metrics import RocCurveDisplay
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, PolynomialFeatures
 from sklearn.datasets import load_iris
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import PrecisionRecallDisplay
-from sklearn.metrics import ConfusionMatrixDisplay
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import GridSearchCV
-import xgboost as xgb
-from sklearn.svm import SVC
-import random
-from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
-from scipy.stats import uniform
 import joblib
 from joblib import dump, load
-from sklearn.model_selection import StratifiedKFold, cross_val_score
-pd.options.mode.chained_assignment = None
-from sklearn.metrics import confusion_matrix
-from numpy import random, array, zeros, empty
-from sklearn.preprocessing import PolynomialFeatures
+
+
 
 inputFile = sys.argv[1]
 outputFile = sys.argv[2]

@@ -18,6 +18,10 @@ unless ((
 		&& $input =~ /-O\t/
 		&& $input =~ /-R\t/
 		
+		#tools
+		&& $input =~ /-samtools\t/
+		&& $input =~ /-bcftools\t/
+		
 		&& $input =~ /-igg\t/
 		&& $input =~ /-hla\t/
 		&& $input =~ /-pseudo\t/
@@ -40,6 +44,10 @@ if ($input eq '-h'){
 	print "##########Input files##########\n";
 	print "-ID\n\tsample_name: sample name\n\n";
 	print "-O\n\tout_prefix: path to output folder\n\n";
+	
+	print "##########Tools##########\n";
+	print "-samtools\n\tsamtools: path to samtools package\n\n";
+	print "-bcftools\n\tbcftools: path to bcftools package\n\n";
 	
 	print "##########Reference##########\n";
 	print "-R\n\tfasta_ref: path to genome fasta reference\n\n";
@@ -106,6 +114,16 @@ if ($input =~ /-redi\t(\S+)/){
 	$rediReference = $1;
 }
 
+my $samtools = '.';
+if ($input =~ /-samtools\t(\S+)/){
+	$samtools = $1;
+}
+
+my $bcftools = '.';
+if ($input =~ /-bcftools\t(\S+)/){
+	$bcftools = $1;
+}
+
 #################################################################################################################
 print "##################################################################################################################################################\n";
 print "##########################################################                              ##########################################################\n";
@@ -124,6 +142,7 @@ my $start_time_str = getTime();
 print "##################################################################################################################################################\n";
 print "$start_time_str START Loading Reference File for Variants Filtering\n";
 
+#Read references
 my %igg = readGTF($iggReference);
 my %hla = readGTF($hlaReference);
 my %pseudo = readGTF($pseudoReference);
@@ -136,6 +155,7 @@ my %REDI = readEDITs($rediReference);
 my %pon;
 my %ponDetail;
 if(-e $tcgaReference){
+	#Read TCGA references
 	open(IN, "gzip -dc $tcgaReference |") or die "Cannot open $tcgaReference for reading: $!\n";
 	while (<IN>) {
 		next if $_ =~ /^\#/;
@@ -151,13 +171,12 @@ if(-e $tcgaReference){
 	}
 	close(IN);
 	unless (keys %pon or keys %ponDetail) {
-		print "Error: Can't find the panel of normal(PON) information in $tcgaReference, please check your PON file\n";
+		print "Error: Can't find the panel of normal(PON) information in TCGA reference file $tcgaReference, please check your TCGA reference file\n";
 		exit;
 	}
 }
 else{
-	print "Error: Can't find the panel of normal(PON) file in $tcgaReference\n";
-	exit;
+	print "WARNING: Can't find the TCGA panel of normal(PON) file in $tcgaReference, IMAPR will run in non-TCGA-reference mode, the result may contain germline variants. \n";
 }
 	
 my $end_time_epoch = time;
@@ -172,6 +191,7 @@ my $finalVCF = "$outDir/$idInput\_final_Variants.vcf";
 my $firstVCF = "$outDir/$idInput\_first_Variants.vcf";
 my $filterVCF = "$outDir/$idInput\_filter_Variants.vcf";
 
+#Read Mutect2 variants calling results
 my %firstVCF;
 open(IN, "$firstVCF") or die "Cannot open $firstVCF for reading: $!\n";
 while(<IN>){
@@ -182,7 +202,7 @@ while(<IN>){
 }
 close(IN);
 		
-		
+#Read repeated Mutect2 variants calling results	
 my %finalVCF;
 open(IN, "$finalVCF") or die "Cannot open $finalVCF for reading: $!\n";
 while(<IN>){
@@ -205,10 +225,10 @@ print "$start_time_str START Samtools Variant Calling\n";
 	
 my $bam = "$outDir/reAligned_hisat2_Tumor.bam";
 my $mpileupout = "$outDir/$idInput\_mpileup.output";		
-system ("samtools mpileup -d 1000000 -l $update_bed_file -f $fastaReference $bam -o $mpileupout 2>/dev/null") unless -e $mpileupout;
+system ("$samtools mpileup -d 1000000 -l $update_bed_file -f $fastaReference $bam -o $mpileupout 2>/dev/null");
 
 my $bcftools_outfiles = "$outDir/$idInput\_bcftools.output";				
-system("bcftools mpileup -d 1000000 -f $fastaReference -R $update_bed_file $bam -Ov -o $bcftools_outfiles 2>/dev/null") unless -e $bcftools_outfiles;
+system("$bcftools mpileup -d 1000000 -f $fastaReference -R $update_bed_file $bam -Ov -o $bcftools_outfiles 2>/dev/null");
 
 $end_time_epoch = time;
 $end_time_str = getTime();
@@ -219,13 +239,14 @@ print "$end_time_str Time Period: ", $first_epoch, "\n";
 $update_bed_file = "$outDir/$idInput\_update_fastq_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,8,8,'fasta');
 my $variant_fasta = "$outDir/$idInput\_variant_fasta.output";		
-system ("samtools faidx -r $update_bed_file $fastaReference -o $variant_fasta") unless -e $variant_fasta;
+system ("$samtools faidx -r $update_bed_file $fastaReference -o $variant_fasta");
 		
 $update_bed_file = "$outDir/$idInput\_update_depth_final_Variants.bed";
 update_bed($bed_file,$update_bed_file,3,2,'depth');
 my $depthOut = "$outDir/$idInput\_depthOut.output";
-system ("samtools depth -b $update_bed_file $bam -o $depthOut") unless -e $depthOut;
-		
+system ("$samtools depth -b $update_bed_file $bam -o $depthOut");
+
+#Read samtools variants calling results			
 my %mpileup;
 open(IN, "$mpileupout") or die "Cannot open $mpileupout for reading: $!\n";
 while(<IN>){			
@@ -235,6 +256,7 @@ while(<IN>){
 }
 close(IN);
 
+#Read fasta sequence around a candicate variant sites	
 my %fasta;
 open(IN, "$variant_fasta") or die "Cannot open $variant_fasta for reading: $!\n";
 my $temp;
@@ -251,6 +273,7 @@ while(<IN>){
 }
 close(IN);
 
+#Read bcftools variants calling results		
 my %bcf;
 open(IN, "$bcftools_outfiles") or die "Cannot open $bcftools_outfiles for reading: $!\n";		
 while(<IN>){
@@ -261,7 +284,7 @@ while(<IN>){
 }
 close(IN);
 
-	
+#Read sequence depth distribution	
 my %depth;
 open(IN, "$depthOut") or die "Cannot open $depthOut for reading: $!\n";		
 while(<IN>){
@@ -276,6 +299,7 @@ $start_time_str = getTime();
 print "##################################################################################################################################################\n";
 print "$start_time_str START Filtering Variants\n";
 
+#Filter variants
 my %pass_vcf;
 my @list = ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX","chrY");
 foreach my $chr(@list){
@@ -574,6 +598,7 @@ foreach my $chr(@list){
 		next if $sequencing_quality_flag == 1;
 				
 		my $coverage_flag = 0;
+		
 		#extract the coverage distribution around a mutation site
 		my @coverage;
 		my $i = $line[1]-2;							
@@ -694,6 +719,7 @@ sub chi_square_test_uniform {
     my $total = sum @data;
     my $expected_count = $total / $num_bins;
     
+	#chi-sequare test
     my $chi_square = 0;
     for my $count (@data) {
         my $deviation = $count - $expected_count;
@@ -725,15 +751,13 @@ sub update_bed{
 sub mann_whitney_u_test {
     my ($array1, $array2) = @_;	
 	
+	#Wilcoxon Rank Sum test
 	my $wilcox_test = Statistics::Test::WilcoxonRankSum->new();
 	$wilcox_test->load_data(\@$array1, \@$array2);
-	my $prob = $wilcox_test->probability();
- 
+	my $prob = $wilcox_test->probability(); 
 	my $pf = sprintf '%f', $prob;
- 
-	
-	my $pstatus = $wilcox_test->probability_status(); 
-	#$wilcox_test->summary();	
+ 	
+	my $pstatus = $wilcox_test->probability_status(); 		
 	return $pf;	
    
 }
@@ -753,11 +777,13 @@ sub median {
 
 sub count_consecutive_altered_nucleotides {
     my ($sequence, $position, $altered_base) = @_;
-    my $new_sequence = substr($sequence, 0, $position) . $altered_base . substr($sequence, $position + 1);
-    
+	
+	#retrieve sequence
+    my $new_sequence = substr($sequence, 0, $position) . $altered_base . substr($sequence, $position + 1);    
     my $left_seq = substr($new_sequence, 0, $position);
     my $right_seq = substr($new_sequence, $position + 1);
     
+	#count nucleotides
     my ($left_count) = $left_seq =~ /($altered_base+)$/; 
     my ($right_count) = $right_seq =~ /^($altered_base+)/;
     

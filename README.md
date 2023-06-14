@@ -17,34 +17,38 @@ These instructions will get you a copy of the project up and running on your loc
 * Perl 5 interpreter or higher on a Ubuntu compatible Linux system is required.
    * [Installation instruction](https://learn.perl.org/installing/)
    * [Perl download](https://www.perl.org/get.html)
-
-* Following perl modules are required.
-   * List::Util
-   * Statistics::Test::WilcoxonRankSum
-   * Statistics::Distributions
+   * Following perl modules are required.
+      * List::Util
+      * Statistics::Test::WilcoxonRankSum
+      * Statistics::Distributions
+   * Modules could be install using `cpanm [Modules_name]`.
    
 * Python 3.8.10 or higher on a Ubuntu compatible Linux system is required.   
    * [Python3 download](https://www.python.org/downloads/)
-   
-* Following python3 packages are required.
-   * sklearn
-   * joblib
-   * pandas
-   * numpy
+   * Following python3 packages are required.
+      * sklearn
+      * joblib
+      * pandas
+      * numpy
+   * Packages could be install using `pip3 install [Packages_name]`.
    
 * The Genome Analysis Toolkit (GATK) v4.1.8.1 is required.
    * [GATK download](https://github.com/broadinstitute/gatk/releases)
    * Note: higher versions of GATK may not be compatible with IMAPR due to potential deprecation or changes to parameters used in GATK.
+   * Can be install in ./tools/ using `build_tools.sh` script
    
-* The Picard tool v2.22.8 is required.
+* The Picard tool v2.23.5 is required.
    * [Picard download](https://github.com/broadinstitute/picard/releases)
    * Note: higher versions of Picard may not be compatible with IMAPR due to potential deprecation or changes to parameters used in Picard.
+   * Can be install in ./tools/ using `build_tools.sh` script
    
 * The samtools version 1.10 or higher is required.
    * [samtools download](https://github.com/samtools/samtools)
+   * Can be install in ./tools/ using `build_tools.sh` script
    
 * The Hisat2 version 2.1.0 or higher is required.
    * [Hisat2 download](http://daehwankimlab.github.io/hisat2/download/#version-hisat2-210)
+   * Can be install in ./tools/ using `build_tools.sh` script
    
 ### Prerequisites reference
 
@@ -52,16 +56,20 @@ Follwing reference files are required to run IMAPR pipeline, please download the
 
 * A fasta reference sequence file:
 	* The fasta reference sequence, GRCh38.d1.vd1.fa.tar.gz, from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
+	* Can be built in ./reference/ using `build_tools.sh` script
 	
 * A annotation files reference sequence file:
 	* The annotation files from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
+	* Can be built in ./reference/ using `build_tools.sh` script
 	
 * A panel of normal (PON) file:
 	* The PON files recommeded by broad institute is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
+	* Can be built in ./reference/ using `build_tools.sh` script
 	
 * A Germline resource file:
 	* The germline resource files recommeded by broad institute is recommended(https://console.cloud.google.com/storage/browser/gatk-best-practices/somatic-hg38)
-
+	* Can be built in ./reference/ using `build_tools.sh` script
+	
 * A TCGA PON reference file:
 	* The TCGA reference files from TCGA data portal is recommended(https://gdc.cancer.gov/about-data/gdc-data-processing/gdc-reference-files)
 	* uuid: 726e24c0-d2f2-41a8-9435-f85f22e1c832
@@ -72,11 +80,13 @@ Follwing reference files are required to run IMAPR pipeline, please download the
 	* Please download these files and place them under IMAPR/reference/
 * A dbSNP reference file:
 	* The dbSNP file from NIH is recommended(https://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/GATK/)
+	* Can be built in ./reference/ using `build_tools.sh` script
 	
 * Three RNA-edits resource files: 
 	* IMAPR/reference/Darned_38.bed (Provided in IMAPR/reference/)
 	* IMAPR/reference/Radar_38.bed (Provided in IMAPR/reference/)
 	* IMAPR/reference/RNA-EDI.bed (http://srv00.recas.ba.infn.it/webshare/ATLAS/donwload/TABLE1_hg38.txt.gz)
+	* Can be built in ./reference/ using `build_tools.sh` script
 	
 ### Installation of IMAPR standalone program
 
@@ -84,21 +94,25 @@ Follwing reference files are required to run IMAPR pipeline, please download the
 ```
 	git clone https://github.com/wang-lab/IMAPR.git   
 ```
+* Build tools library for IMAPR
+```
+	bash build_tools.sh tools   
+```
 * Build and check reference for IMAPR
 ```
-	bash build_reference.sh ./reference   
+	bash build_reference.sh reference tools
 ```
-* Build indinces for genome fasta file
+* NOTE: if you are using samtools, bcftools, and hisat2 tools that are built on your own, please run these following command separately. If you are using tools that are built from `build_tools.sh`, please ignore this part.
 ```
+	#Build indinces for genome fasta file
 	[path-to-samtools-package] faidx ./reference/GRCh38.d1.vd1.fa
 	java -jar [path-to-picard-package] CreateSequenceDictionary -R ./reference/GRCh38.d1.vd1.fa -O ./reference/GRCh38.d1.vd1.dict
-```
-* Build indinces for Hisat2 alignment
-```
+	
+	#Build indinces for Hisat2 alignment
 	[path-to-hisat2-build-package] ./reference/GRCh38.d1.vd1.fa ./reference/
 ```
 * Prepare your input files and update your input.txt file.
-* Type 'bash IMAPR.sh' to run the program and view the help file.
+* Type 'bash IMAPR.sh pipeline_inputs_sample.txt' to run the program and view the help file.
 
 ### I/O Descriptions
 #### Inputs  
@@ -116,6 +130,7 @@ This file has the following format. The order of rows doesn't matter.
   gatk	<path-to-gatk-package>
   picard	<path-to-picard-package>
   samtools	<path-to-samtools-package>
+  bcftools	<path-to-bcftools-package>
   hisat2	<path-to-hisat2-package>
 
   #reference
@@ -142,7 +157,8 @@ This file has the following format. The order of rows doesn't matter.
 
 ***gatk*** is path to gatk tool package  
 ***picard*** is path to picard jar file.  
-***samtools*** is path to samtools package.  
+***samtools*** is path to samtools package.
+***bcftools*** is path to bcftools package.  
 ***hisat2*** is path to hisat2 package.  
 
 ***fasta_ref*** is path to genome fasta reference.  
@@ -166,14 +182,14 @@ This file has the following format. The order of rows doesn't matter.
 * bash command submission, user need to change the indices listed in IMAPR.sh   
    
 ```
-	bash IMAPR.sh pipeline_inputs.txt
+	bash IMAPR.sh pipeline_inputs_sample.txt
 ```
 
 * The script can also be run separately with follow steps
   
 ```
 	perl detect_variants.pl [options]... -ID $sample_name -mode $input_format -T $tumor_input -N $normal_input -R $fasta_ref -O $out_prefix -gatk $gatk -picard $picard -hisat2 $hisat2 -gtf $gtf_ref -gene $genelist_ref -dbsnp $dbsnp_ref -hisat2_reference $hisat_ref -germline $germline_ref -pon $PON_ref
-	perl filter_variants.pl [options]... -ID $sample_name -O $out_prefix -R $fasta_ref -igg $igg_ref -hla $hla_ref -pseudo $pseudo_ref -tcga $tcga_PON_ref -radar $radar_ref -darned $darned_ref -redi $REDI_ref
+	perl filter_variants.pl [options]... -ID $sample_name -O $out_prefix -R $fasta_ref -igg $igg_ref -hla $hla_ref -pseudo $pseudo_ref -tcga $tcga_PON_ref -radar $radar_ref -darned $darned_ref -redi $REDI_ref -samtools $samtools -bcftools $bcftools
 	perl machine_learning.pl [options]... -ID $sample_name -O $out_prefix -gtf $gtf_ref
 ```
 
@@ -194,8 +210,13 @@ If the file is read in correctly, the following output files will be generated i
 ```
 * Machine-learning filtered Variants files
 ```
-	[sample_ID]_mc_filter_Variants.vcf
+	[sample_ID]_mc_outputs.txt
 ```
+* Final output
+```
+	[sample_ID]_mutations.vcf
+```
+* User can apply ANNOVAR, Oncotator, or VEP tools to annotate mutations listed in [sample_ID]_mutations.vcf.
 ## License & copyright
 
 License under the [GNU public library](LICENSE)

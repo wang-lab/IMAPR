@@ -2,17 +2,18 @@ sample_name	sample1
 input_format	RNA/DNA
 tumor_input	/data1/gtang/git/data/tumor.bam
 normal_input	/data1/gtang/git/data/normal.bam
-out_prefix	/data1/gtang/git/data/out_put3
+out_prefix	/data1/gtang/git/data/out_put5
 
 #system
-thread	10
+thread	12
 ram	60
 
 #tools_reference
-gatk	gatk
-picard	~/picard.jar
-samtools	samtools
-hisat2	hisat2
+gatk	./tools/gatk-4.1.8.1/gatk
+picard	./tools/picard.jar
+samtools	./tools/samtools-1.10/samtools
+bcftools	./tools/bcftools-1.10.2/bcftools
+hisat2	./tools/hisat2-2.1.0/hisat2
 
 #reference
 fasta_ref	./reference/GRCh38.d1.vd1.fa
@@ -28,4 +29,4 @@ pseudo_ref	./reference/pseudoGene.gtf
 tcga_PON_ref	./reference/MuTect2.PON.5210.vcf.gz
 radar_ref	./reference/Radar_38.bed
 darned_ref	./reference/Darned_38.bed
-REDI_ref	./reference/RNA-EDI_38.txt
+REDI_ref	./reference/RNA-EDI_38.bed

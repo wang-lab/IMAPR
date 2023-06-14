@@ -160,6 +160,7 @@ while(<IN>){
 	next if $_ =~ /^\#/;	
 	$_=~ s/\s+$//;
 	my @line = split /\t/, $_;
+	next unless $line[6] eq 'PASS';
 	$vcf{$line[0]}{$line[1]} = $_;
 	
 }
@@ -380,13 +381,15 @@ while(<MC>){
 }
 close(MC);
 
-my $mc_filter_file = "$outDir/$idInput\_mc_filter_Variants.vcf";
+my $mc_filter_file = "$outDir/$idInput\_mutations.vcf";
 open(IN, "$vcf") or die "Cannot open $vcf for reading: $!\n";
 open(OUT, ">$mc_filter_file") or die "Cannot open $mc_filter_file for reading: $!\n";
+print OUT "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTUMOR\tNORMAL\n";
 while(<IN>){
 	next if $_ =~ /^#/;
 	$_=~ s/\s+$//;
 	my @line = split /\t/, $_;
+	next unless $line[6] eq 'PASS';
 	print OUT "$_\n" if exists $mc{$line[0]}{$line[1]};
 }
 close(IN);
