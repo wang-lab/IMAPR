@@ -21,7 +21,7 @@ These instructions will get you a copy of the project up and running on your loc
       * List::Util
       * Statistics::Test::WilcoxonRankSum
       * Statistics::Distributions
-   * Modules could be install using `cpanm [Modules_name]`.
+   * Modules could be installed using `cpanm [Modules_name]`.
    
 * Python 3.8.10 or higher on a Ubuntu compatible Linux system is required.   
    * [Python3 download](https://www.python.org/downloads/)
@@ -30,25 +30,25 @@ These instructions will get you a copy of the project up and running on your loc
       * joblib
       * pandas
       * numpy
-   * Packages could be install using `pip3 install [Packages_name]`.
+   * Packages could be installed using `pip3 install [Packages_name]`.
    
 * The Genome Analysis Toolkit (GATK) v4.1.8.1 is required.
    * [GATK download](https://github.com/broadinstitute/gatk/releases)
    * Note: higher versions of GATK may not be compatible with IMAPR due to potential deprecation or changes to parameters used in GATK.
-   * Can be install in ./tools/ using `build_tools.sh` script
+   * Can be installed in ./tools/ using `build_tools.sh` script
    
 * The Picard tool v2.23.5 is required.
    * [Picard download](https://github.com/broadinstitute/picard/releases)
    * Note: higher versions of Picard may not be compatible with IMAPR due to potential deprecation or changes to parameters used in Picard.
-   * Can be install in ./tools/ using `build_tools.sh` script
+   * Can be installed in ./tools/ using `build_tools.sh` script
    
 * The samtools version 1.10 or higher is required.
    * [samtools download](https://github.com/samtools/samtools)
-   * Can be install in ./tools/ using `build_tools.sh` script
+   * Can be installed in ./tools/ using `build_tools.sh` script
    
 * The Hisat2 version 2.1.0 or higher is required.
    * [Hisat2 download](http://daehwankimlab.github.io/hisat2/download/#version-hisat2-210)
-   * Can be install in ./tools/ using `build_tools.sh` script
+   * Can be installed in ./tools/ using `build_tools.sh` script
    
 ### Prerequisites reference
 
